@@ -1,7 +1,30 @@
-version: '3'
+# services:
+#   zookeeper:
+#     image: confluentinc/cp-zookeeper:6.2.10
+#     environment:
+#       ZOOKEEPER_CLIENT_PORT: 2181
+#       ZOOKEEPER_TICK_TIME: 2000
+#     ports:
+#       - 22181:2181
+
+#   kafka:
+#     image: confluentinc/cp-kafka:6.2.10
+#     depends_on:
+#       - zookeeper
+#     ports:
+#       - 29092:29092
+#     environment:
+#       KAFKA_BROKER_ID: 1
+#       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+#       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+#       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+#       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+#       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+
 services:
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:6.2.10
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -9,7 +32,7 @@ services:
       - 22181:2181
 
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:6.2.10
     depends_on:
       - zookeeper
     ports:
@@ -21,3 +44,54 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  eureka-server:
+    build: ./eureka-server
+    ports:
+      - 8761:8761
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - 8080:8080
+    depends_on:
+      - eureka-server
+
+  user-service:
+    build: ./user-service
+    ports:
+      - 8081:8081
+    depends_on:
+      - eureka-server
+      - mysql
+
+  restaurant-service:
+    build: ./restaurant-service
+    ports:
+      - 8082:8082
+    depends_on:
+      - eureka-server
+      - mysql
+
+  order-service:
+    build: ./order-service
+    ports:
+      - 8083:8083
+    depends_on:
+      - eureka-server
+      - mysql
+
+  frontend:
+    build: ./frontend
+    ports:
+      - 4200:4200
+    depends_on:
+      - api-gateway
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: food_order_db
+    ports:
+      - 3306:3306
