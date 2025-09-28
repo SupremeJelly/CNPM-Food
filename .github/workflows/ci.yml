@@ -9,10 +9,9 @@ on:
       - src
 
 jobs:
-  backend:
+  backend-user:
     runs-on: ubuntu-latest
-    working-directory: ./backend
-
+    working-directory: ./user-service
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -31,7 +30,85 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build and run backend
+      - name: Build and run user-service
+        run: |
+          chmod +x mvnw
+          ./mvnw spring-boot:run
+
+  backend-restaurant:
+    runs-on: ubuntu-latest
+    working-directory: ./restaurant-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'eclipse-temurin'
+          java-version: '21'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build and run restaurant-service
+        run: |
+          chmod +x mvnw
+          ./mvnw spring-boot:run
+
+  backend-order:
+    runs-on: ubuntu-latest
+    working-directory: ./order-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'eclipse-temurin'
+          java-version: '21'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build and run order-service
+        run: |
+          chmod +x mvnw
+          ./mvnw spring-boot:run
+
+  backend-api-gateway:
+    runs-on: ubuntu-latest
+    working-directory: ./api-gateway
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'eclipse-temurin'
+          java-version: '21'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build and run api-gateway
         run: |
           chmod +x mvnw
           ./mvnw spring-boot:run
@@ -39,7 +116,6 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     working-directory: ./frontend
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
