@@ -11,7 +11,6 @@ on:
 jobs:
   backend-user:
     runs-on: ubuntu-latest
-    working-directory: ./user-service
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -34,10 +33,10 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw spring-boot:run
+    working-directory: ./user-service
 
   backend-restaurant:
     runs-on: ubuntu-latest
-    working-directory: ./restaurant-service
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -60,10 +59,10 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw spring-boot:run
+    working-directory: ./restaurant-service
 
   backend-order:
     runs-on: ubuntu-latest
-    working-directory: ./order-service
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -86,10 +85,10 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw spring-boot:run
+    working-directory: ./order-service
 
   backend-api-gateway:
     runs-on: ubuntu-latest
-    working-directory: ./api-gateway
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -112,10 +111,10 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw spring-boot:run
+    working-directory: ./api-gateway
 
   frontend:
     runs-on: ubuntu-latest
-    working-directory: ./frontend
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -138,3 +137,4 @@ jobs:
 
       - name: Start frontend
         run: npm start
+    working-directory: ./frontend
