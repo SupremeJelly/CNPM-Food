@@ -34,7 +34,7 @@ jobs:
       - name: Build and run user-service
         run: |
           chmod +x mvnw
-          ./mvnw spring-boot:run
+          ./mvnw clean package -DskipTests
 
   backend-restaurant:
     runs-on: ubuntu-latest
@@ -61,7 +61,7 @@ jobs:
       - name: Build and run restaurant-service
         run: |
           chmod +x mvnw
-          ./mvnw spring-boot:run
+          ./mvnw clean package -DskipTests
 
   backend-order:
     runs-on: ubuntu-latest
@@ -88,7 +88,7 @@ jobs:
       - name: Build and run order-service
         run: |
           chmod +x mvnw
-          ./mvnw spring-boot:run
+          ./mvnw clean package -DskipTests
 
   backend-api-gateway:
     runs-on: ubuntu-latest
@@ -115,7 +115,7 @@ jobs:
       - name: Build and run api-gateway
         run: |
           chmod +x mvnw
-          ./mvnw spring-boot:run
+          ./mvnw clean package -DskipTests
 
   frontend:
     runs-on: ubuntu-latest
