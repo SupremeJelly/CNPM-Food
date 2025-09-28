@@ -39,7 +39,7 @@ public class AuthControllerTest {
     @Test
     void testRegisterSuccess() throws Exception {
         // Given
-        RegisterRequest registerRequest = new RegisterRequest("username", "password", "thanvanhuyy@gmail.com");
+        RegisterRequest registerRequest = new RegisterRequest("username", "thanvanhuyy@gmail.com", "password" );
         RegisterResponse registerResponse = new RegisterResponse("User registered successfully");
         when(authService.register(any(RegisterRequest.class))).thenReturn(registerResponse);
 
