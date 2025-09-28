@@ -31,9 +31,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Install mvnw
-        run: |
-          mvn clean install
       - name: Build and run user-service
         run: |
           chmod +x mvnw
@@ -61,9 +58,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Install mvnw
-        run: |
-          mvn clean install
       - name: Build and run restaurant-service
         run: |
           chmod +x mvnw
@@ -91,9 +85,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Install mvnw
-        run: |
-          mvn clean install
       - name: Build and run order-service
         run: |
           chmod +x mvnw
@@ -121,9 +112,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Install mvnw
-        run: |
-          mvn clean install
       - name: Build and run api-gateway
         run: |
           chmod +x mvnw
