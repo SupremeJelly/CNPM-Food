@@ -34,9 +34,11 @@ jobs:
             ${{ runner.os }}-maven-
       # Build project
       - name: Build with Maven
+        working-directory: api-gateway
         run: mvn clean install -DskipTests=false
       # Run tests
-      - name: Run unit & integration tests
+      - name: Run unit tests
+        working-directory: api-gateway
         run: mvn test
       # Optional: publish test results (JUnit)
       - name: Upload test results
