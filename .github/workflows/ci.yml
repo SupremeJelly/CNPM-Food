@@ -18,13 +18,13 @@ jobs:
         uses: actions/checkout@v3
       # Setup JDK 21 (tương thích Spring Boot 3.x)
       - name: Set up JDK 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: temurin
       # Cache Maven dependencies để tăng tốc
       - name: Cache Maven packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.m2/repository
@@ -40,7 +40,7 @@ jobs:
         run: mvn test
       # Optional: publish test results (JUnit)
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: target/surefire-reports
