@@ -12,20 +12,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    services:
-      # Nếu bạn cần MySQL hoặc Redis cho test, uncomment và chỉnh port
-      # mysql:
-      #   image: mysql:8
-      #   env:
-      #     MYSQL_ROOT_PASSWORD: root
-      #     MYSQL_DATABASE: testdb
-      #   ports:
-      #     - 3306:3306
-      #   options: >-
-      #     --health-cmd "mysqladmin ping"
-      #     --health-interval 10s
-      #     --health-timeout 5s
-      #     --health-retries 3
     steps:
       # Checkout source code
       - name: Checkout code
