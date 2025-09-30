@@ -3,6 +3,8 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Order } from '../dto/order/order-response';
 import { OrderRequest } from '../dto/order/order-request';
+import { HttpParams } from '@angular/common/http';
+import { Page } from '../dto/Page';
 import { environment } from '../../environments/enviroment';
 
 @Injectable({
@@ -23,4 +25,10 @@ export class OrderService {
   getOrder(orderId: number):Observable<Order> {
     return this.http.get<Order>(`${this.orderUrl}/${orderId}`);
   }
+  getAllOrders(page: number, size: number): Observable<Page<Order>> {
+  let params = new HttpParams()
+    .set('page', page.toString())
+    .set('size', size.toString());
+  return this.http.get<Page<Order>>(this.orderUrl, { params });
+}
 }
