@@ -33,7 +33,7 @@ public class PaymentController {
     public ResponseEntity<Payment> create(@RequestBody PaymentRequest req) {
         Payment p = new Payment();
         p.setOrderId(req.getOrderId());
-        p.setAmount(req.getAmount());
+        // p.setAmount(req.getAmount());
         p.setMethod(req.getMethod());
         Payment saved = service.createPayment(p);
         return ResponseEntity.created(URI.create("/payments/" + saved.getId())).body(saved);
