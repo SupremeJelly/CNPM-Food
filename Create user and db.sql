@@ -50,3 +50,21 @@ INSERT INTO menu_items (image_url, name, price, stock, restaurant_id) VALUES
 ('images/salad_tuna.jpg', 'Salad cá ngừ', 60000, 30, 2),
 ('images/milkshake_chocolate.jpg', 'Sữa lắc socola', 45000, 60, 7),
 ('images/milkshake_strawberry.jpg', 'Sữa lắc dâu', 45000, 60, 3);
+
+Use user_db;
+INSERT INTO users (address, email, is_active, password, profile_image_name, username) VALUES
+('123 Street A', 'user1@example.com', 1, 'password1', NULL, 'user1'),
+('123 Street B', 'user2@example.com', 1, 'password2', NULL, 'user2'),
+('123 Street C', 'user3@example.com', 1, 'password3', NULL, 'user3'),
+('123 Street D', 'user4@example.com', 1, 'password4', NULL, 'user4'),
+('123 Street E', 'user5@example.com', 1, 'password5', NULL, 'user5'),
+('123 Street F', 'user6@example.com', 1, 'password6', NULL, 'user6'),
+('123 Street G', 'user7@example.com', 1, 'password7', NULL, 'user7'),
+('123 Street H', 'user8@example.com', 1, 'password8', NULL, 'user8'),
+('123 Street I', 'user9@example.com', 1, 'password9', NULL, 'user9'),
+('123 Street J', 'user10@example.com', 1, 'password10', NULL, 'user10');
+
+INSERT INTO user_roles (user_id, role)
+SELECT user_id, 'ROLE_USER'
+FROM users
+WHERE username LIKE 'user%';
