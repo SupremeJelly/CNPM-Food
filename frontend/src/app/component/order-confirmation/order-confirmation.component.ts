@@ -14,7 +14,8 @@ export class OrderConfirmationComponent {
 
   constructor(
     private orderService : OrderService,
-    private route : ActivatedRoute
+    private route : ActivatedRoute,
+
   ) { 
   }
   ngOnInit(): void {
@@ -25,4 +26,5 @@ export class OrderConfirmationComponent {
       })
     );
   }
+
 }
