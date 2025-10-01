@@ -35,34 +35,6 @@ export class PaymentComponent implements OnInit {
     );
   }
 
-  // onSubmit() {
-  //   if (this.shippingForm.valid) {
-  //     this.cartItems$?.pipe(
-  //       take(1), // Only take the first emission from cartItems$
-  //       map(items => items.map(cartItem => ({  // Convert CartIteam from local to OrderItem
-  //         menuItemId: cartItem.menuItem.menuItemId,
-  //         quantity: cartItem.quantity
-  //       }))),
-  //       switchMap(orderItems => {  // Switch to the orderService.createOrder Observable
-  //         const orderRequest: OrderRequest = {
-  //           userId: this.userId,
-  //           ...this.shippingForm.value,
-  //           items: orderItems
-  //         };
-  //         return this.orderService.createOrder(orderRequest); // This returns the Observable from the orderService
-  //       })
-  //     ).subscribe({
-  //       next: (order) => {
-  //         this.router.navigate(['/order-confirmation', order.orderId]);
-  //         this.cartService.clearCart();
-  //       },
-  //       error: (err) => {
-  //         console.error("Error creating order:", err); // Handle errors gracefully
-  //       }
-  //     });
-  //   }
-  // }
-
   getUserId() {
     this.userService.user$.subscribe(user => {
       this.userId = user?.userId!;
