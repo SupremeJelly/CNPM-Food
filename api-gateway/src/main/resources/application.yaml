@@ -18,9 +18,10 @@ spring:
                 fallbackUri: forward:/fallback/restaurant
             - name: RequestRateLimiter
               args:
-                redis-rate-limiter.replenishRate: 10 # 10 request mỗi giây
-                redis-rate-limiter.burstCapacity: 50 # có thể chứa tối đa 20 request tại bất kỳ thời điểm nào.
-                redis-rate-limiter.requestedTokens: 1 # mỗi request sẽ tiêu tốn 1 token
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 50
+                redis-rate-limiter.requestedTokens: 1
+
         - id: order-service
           uri: http://localhost:8083
           predicates:
@@ -35,6 +36,7 @@ spring:
                 redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 50
                 redis-rate-limiter.requestedTokens: 1
+
         - id: user-service
           uri: http://localhost:8081
           predicates:
@@ -44,6 +46,21 @@ spring:
               args:
                 name: userCircuitBreaker
                 fallbackUri: forward:/fallback/user
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 50
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: payment-service
+          uri: http://localhost:8084   # 👉 Payment-service chạy ở port 8084
+          predicates:
+            - Path=/api/v1/payments/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: paymentCircuitBreaker
+                fallbackUri: forward:/fallback/payment
             - name: RequestRateLimiter
               args:
                 redis-rate-limiter.replenishRate: 10
@@ -65,16 +82,18 @@ resilience4j:
         failureRateThreshold: 50
     instances:
       restaurantCircuitBreaker:
-        aseConfig: default
+        baseConfig: default
       orderCircuitBreaker:
-        aseConfig: default
+        baseConfig: default
       userCircuitBreaker:
-        aseConfig: default
+        baseConfig: default
+      paymentCircuitBreaker:       # 👉 thêm circuit breaker cho payment
+        baseConfig: default
 
 server:
   port: 9000
 
-#eureka
+# eureka
 eureka:
   client:
     serviceUrl:
