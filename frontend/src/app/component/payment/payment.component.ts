@@ -11,8 +11,8 @@ import { UserService } from '../../service/user.service';
 
 @Component({
   selector: 'app-shipping',
-  templateUrl: './shipping.component.html',
-  styleUrl: './shipping.component.css'
+  templateUrl: './payment.component.html',
+  styleUrl: './payment.component.css'
 })
 export class PaymentComponent implements OnInit {
 
