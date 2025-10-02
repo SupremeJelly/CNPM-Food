@@ -16,6 +16,8 @@ GRANT ALL PRIVILEGES ON restaurant_db.* TO 'restaurantservice'@'localhost';
 GRANT ALL PRIVILEGES ON *.* TO 'restaurantservice'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 
+
+
 USE restaurant_db;
 INSERT INTO restaurants (address, image, name) VALUES
 ('123 Lê Văn Sỹ, Quận 3, TP.HCM', 'images/burger_king.jpg', 'Burger King'),
