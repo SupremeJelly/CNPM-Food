@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import { Order } from '../../dto/order/order-response';
 import { ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 import { OrderService } from '../../service/order.service';
 
 @Component({
@@ -15,6 +16,7 @@ export class OrderConfirmationComponent {
   constructor(
     private orderService : OrderService,
     private route : ActivatedRoute,
+    private router: Router,
 
   ) { 
   }
@@ -25,6 +27,21 @@ export class OrderConfirmationComponent {
         return this.orderService.getOrder(id);
       })
     );
+  }
+
+  // goToPayment(order: any) {
+  //   this.router.navigate(['/payment']
+  //     , {
+  //     queryParams: {
+  //       orderId: order.orderId,
+  //       total: order.totalAmount,
+  //       status: order.status
+  //     }
+  //   });
+  // }
+
+  goToPayment() {
+    this.router.navigate(['/payment']);
   }
 
 }
