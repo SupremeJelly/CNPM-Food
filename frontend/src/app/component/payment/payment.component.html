@@ -2,34 +2,32 @@
 <h2 class="text-2xl font-bold mb-6">Check out</h2>
   <div class="bg-white shadow-md overflow-hidden">
     <div class="flex flex-col md:flex-row">
-      <!-- Shipping Information Section -->
       <div class="w-full md:w-3/5 p-6 md:p-8 border-b md:border-b-0 md:border-r border-gray-200">
         <h2 class="text-2xl font-semibold mb-6 text-gray-700">Order Summary</h2>
         <div class="space-y-4">
           <ul class="space-y-4">
-            <li *ngFor="let item of cartItems$ | async" class="flex items-center space-x-4">
+            <!-- <li *ngFor="let item of cartItems$ | async" class="flex items-center space-x-4">
               <img [src]="item.menuItem.imageUrl" [alt]="item.menuItem.name" class="w-16 h-16 object-cover">
               <div class="flex-grow">
                 <p class="text-gray-800 font-medium">{{ item.menuItem.name }}</p>
                 <p class="text-gray-600 text-sm">Quantity: {{ item.quantity }}</p>
               </div>
               <span class="font-semibold text-gray-800">${{ item.menuItem.price * item.quantity | number:'1.2-2' }}</span>
-            </li>
+            </li> -->
           </ul>
-          <div class="pt-4 border-t border-gray-200">
+          <!-- <div class="pt-4 border-t border-gray-200">
             <div class="flex justify-between items-center font-semibold text-lg">
               <span class="text-gray-600">Total</span>
               <span class="text-gray-900">${{ total$ | async | number:'1.2-2' }}</span>
             </div>
-          </div>
+          </div> -->
         </div>
 
         
       </div>
 
-      <!-- Order Summary Section -->
       <div class="w-full md:w-2/5 p-6 md:p-8 bg-gray-50">
-        <h2 class="text-2xl font-semibold mb-6 text-gray-700">Shipping Information</h2>
+        <!-- <h2 class="text-2xl font-semibold mb-6 text-gray-700">Shipping Information</h2>
         <form [formGroup]="shippingForm" (ngSubmit)="onSubmit()" class="space-y-4">
           
             <div>
@@ -52,7 +50,9 @@
           <button type="submit" [disabled]="!shippingForm.valid" class="w-full bg-gray-800 text-white py-3 px-4 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-offset-2 disabled:opacity-50 transition duration-300 ease-in-out mt-4 rounded-md">
             Place Order
           </button>
-        </form>
+        </form> -->
       </div>
     </div>
   </div>
+
+

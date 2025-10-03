@@ -16,6 +16,12 @@ GRANT ALL PRIVILEGES ON restaurant_db.* TO 'restaurantservice'@'localhost';
 GRANT ALL PRIVILEGES ON *.* TO 'restaurantservice'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 
+CREATE DATABASE payment_db;
+CREATE USER 'paymentservice'@'localhost' IDENTIFIED BY 'pay';
+GRANT ALL PRIVILEGES ON payment_db.* TO 'paymentservice'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'paymentservice'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
 
 
 USE restaurant_db;
