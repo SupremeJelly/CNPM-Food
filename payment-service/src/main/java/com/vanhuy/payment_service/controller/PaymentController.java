@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vanhuy.payment_service.dto.PaymentRequest;
 import com.vanhuy.payment_service.model.Payment;
+import com.vanhuy.payment_service.model.Payment.PaymentStatus;
 import com.vanhuy.payment_service.service.PaymentService;
 
 
@@ -59,7 +60,7 @@ public class PaymentController {
 
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Payment> updateStatus(@PathVariable Long id, @RequestParam String status) {
+    public ResponseEntity<Payment> updateStatus(@PathVariable Long id, @RequestParam PaymentStatus status) {
         Payment updated = service.updateStatus(id, status);
         return ResponseEntity.ok(updated);
     }
