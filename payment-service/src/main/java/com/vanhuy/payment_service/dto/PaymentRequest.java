@@ -15,16 +15,28 @@
 // public void setMethod(String method) { this.method = method; }
 // }
 
+
+
 package com.vanhuy.payment_service.dto;
 
 import java.math.BigDecimal;
 
+import com.vanhuy.payment_service.model.Payment;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class PaymentRequest {
 
     private Long orderId;
     private Long userId;           // thêm userId (tùy nhu cầu)
     private BigDecimal amount;     // thay Double bằng BigDecimal
-    private String method;         // hoặc tạo enum PaymentMethod
+    private Payment.PaymentMethod method;
+    
 
     public Long getOrderId() {
         return orderId;
@@ -46,11 +58,12 @@ public class PaymentRequest {
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
+    
+    public enum PaymentMethod {
+        CREDIT_CARD, BANK_TRANSFER, CASH_ON_DELIVERY
+    }
 
-    public String getMethod() {
-        return method;
-    }
-    public void setMethod(String method) {
-        this.method = method;
-    }
+    // public enum PaymentStatus {
+    //     SUCCESS, FAILED, PENDING
+    // }
 }
