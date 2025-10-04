@@ -1,6 +1,5 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
@@ -22,7 +21,7 @@ import { UserManagementComponent } from './component/admin/user-management/user-
 import { RestaurantManagementComponent } from './component/admin/restaurant-management/restaurant-management.component';
 import { OrderManagementComponent } from './component/admin/order-management/order-management.component';
 import { UserFormDialogComponent } from './component/admin/user-form-dialog/user-form-dialog.component';
-
+import { PaymentComponent } from './component/payment/payment.component';
 
 @NgModule({
   declarations: [
@@ -32,6 +31,7 @@ import { UserFormDialogComponent } from './component/admin/user-form-dialog/user
     CartComponent,
     OrderConfirmationComponent,
     ShippingComponent,
+    PaymentComponent,
     LoginComponent,
     RegisterComponent,
     ProfileComponent,

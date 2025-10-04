@@ -4,6 +4,8 @@ import { Order } from '../../dto/order/order-response';
 import { ActivatedRoute } from '@angular/router';
 import { Router } from '@angular/router';
 import { OrderService } from '../../service/order.service';
+import { OrderDataService } from '../../service/order-data.service';
+
 
 @Component({
   selector: 'app-order-confirmation',
@@ -17,6 +19,7 @@ export class OrderConfirmationComponent {
     private orderService : OrderService,
     private route : ActivatedRoute,
     private router: Router,
+    private orderDataService: OrderDataService
 
   ) { 
   }
@@ -29,7 +32,12 @@ export class OrderConfirmationComponent {
     );
   }
 
-  // goToPayment(order: any) {
+  goToPayment(order: Order) {
+      this.orderDataService.setOrder(order);
+      this.router.navigate(['/payment']);
+  }
+
+  // goToPayment(order: Order) {
   //   this.router.navigate(['/payment']
   //     , {
   //     queryParams: {
@@ -40,8 +48,8 @@ export class OrderConfirmationComponent {
   //   });
   // }
 
-  goToPayment() {
-    this.router.navigate(['/payment']);
-  }
+  // goToPayment() {
+  //   this.router.navigate(['/payment']);
+  // }
 
 }
