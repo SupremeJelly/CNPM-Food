@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.vanhuy.payment_service.dto.PaymentRequest;
 import com.vanhuy.payment_service.model.Payment;
@@ -70,18 +69,12 @@ public class PaymentController {
     }
 
     @PostMapping("/process")
-    public String processPayment(
+    public ResponseEntity<String> processPayment(
             @RequestParam Long orderId,
-            @RequestParam String paymentMethod,
-            RedirectAttributes redirectAttributes) {
-
-        // gọi service để xử lý logic
+            @RequestParam String paymentMethod) {
+        
         service.processPayment(orderId, paymentMethod);
-
-        // add flash message
-        redirectAttributes.addFlashAttribute("message", "Đặt hàng thành công! Thanh toán bằng: " + paymentMethod);
-
-        // redirect về trang chủ
-        return "redirect:/";
-}
+        String message = "Đặt hàng thành công! Thanh toán bằng: " + paymentMethod;
+        return ResponseEntity.ok(message);
+    }
 }
