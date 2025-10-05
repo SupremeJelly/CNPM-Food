@@ -95,6 +95,7 @@
         next: res => {
           alert('Payment created successfully!');
           console.log(res);
+          this.router.navigate(['/'])
         },
         error: (err) => {
           console.error('Payment failed:', err.message); // hoặc show toast
