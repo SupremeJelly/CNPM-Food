@@ -39,4 +39,11 @@ public class OrderController {
         Page<OrderResponse> orders = orderService.getAllOrders(pageable);
         return ResponseEntity.ok(orders);
     }
+    @PutMapping("/{orderId}/payment-status")
+    public ResponseEntity<String> updatePaymentStatus(
+            @PathVariable Integer orderId,
+            @RequestParam String status) {
+        orderService.updatePaymentStatus(orderId, status);
+        return ResponseEntity.ok("Payment status updated successfully!");
+    }
 }

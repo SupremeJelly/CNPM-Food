@@ -89,6 +89,8 @@
         method: selectedMethod
       };
 
+       console.log('Payment payload:', paymentData);
+
       this.paymentService.processPayment(paymentData).subscribe({
         next: res => {
           alert('Payment created successfully!');
