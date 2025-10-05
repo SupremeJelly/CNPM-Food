@@ -96,9 +96,9 @@
           alert('Payment created successfully!');
           console.log(res);
         },
-        error: err => {
-          console.error(err);
-          alert('Payment failed.');
+        error: (err) => {
+          console.error('Payment failed:', err.message); // hoặc show toast
+          this.paymentError = err.message;
         }
       });
     }
@@ -118,8 +118,8 @@
       //   }
       // }
 
-      if (paymentMethod === 'cod') return PaymentMethod.CASH_ON_DELIVERY;
-      if (paymentMethod === 'card') return PaymentMethod.CREDIT_CARD;
+      if (paymentMethod === 'CASH_ON_DELIVERY') return PaymentMethod.CASH_ON_DELIVERY;
+      if (paymentMethod === 'CREDIT_CARD') return PaymentMethod.CREDIT_CARD;
       return PaymentMethod.CASH_ON_DELIVERY;
     }
 

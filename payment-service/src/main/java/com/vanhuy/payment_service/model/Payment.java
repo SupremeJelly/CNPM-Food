@@ -1,6 +1,7 @@
 package com.vanhuy.payment_service.model;
 
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Entity;
@@ -26,7 +27,7 @@ public class Payment {
 
     private Long orderId;
 
-    private Double amount;
+    private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
     private PaymentMethod method; // Dùng enum thay cho String
