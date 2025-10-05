@@ -46,4 +46,10 @@ public class OrderController {
         orderService.updatePaymentStatus(orderId, status);
         return ResponseEntity.ok("Payment status updated successfully!");
     }
+
+    @GetMapping("/api/v1/orders/{orderId}/items")
+    public List<OrderItemDTO> getOrderItems(@PathVariable Integer orderId) {
+        return orderService.getOrderItems(orderId); // trả về danh sách menuItemId + quantity
+    }
+
 }
