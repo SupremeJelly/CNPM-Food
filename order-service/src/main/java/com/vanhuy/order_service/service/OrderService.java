@@ -142,15 +142,21 @@ public class OrderService {
     }
     @Transactional
     public void updatePaymentStatus(Integer orderId, String status) {
+        logger.info("[OrderService] Updating payment status for order {} to '{}'", orderId, status);
+
         Order order = orderRepository.findById(orderId)
-            .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+            .orElseThrow(() -> {
+                logger.error("[OrderService] Order not found: {}", orderId);
+                return new RuntimeException("Order not found: " + orderId);
+            });
 
         try {
             order.setPaymentStatus(Order.PaymentStatus.valueOf(status.toUpperCase()));
+            orderRepository.save(order);
+            logger.info("[OrderService] Payment status updated successfully: {}", order.getPaymentStatus());
         } catch (IllegalArgumentException ex) {
-            throw new RuntimeException("Invalid payment status: " + status);
+            logger.error("[OrderService] Invalid payment status received: '{}'", status);
+            throw new RuntimeException("Invalid payment status: " + status, ex);
         }
-
-        orderRepository.save(order);
     }
 }
