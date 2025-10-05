@@ -23,6 +23,7 @@ export class PaymentService {
 
   // Hàm xử lý lỗi tương tự AuthService
   private handleError(error: HttpErrorResponse): Observable<never> {
+    console.error('Payment error:', error);
     let errorMessage = 'Payment failed.';
     if (error.error && error.error.message) {
       errorMessage = error.error.message;

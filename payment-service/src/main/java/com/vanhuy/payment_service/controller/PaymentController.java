@@ -38,7 +38,7 @@ public class PaymentController {
     public ResponseEntity<Payment> create(@RequestBody PaymentRequest req) {
         Payment p = new Payment();
         p.setOrderId(req.getOrderId());
-        // p.setAmount(req.getAmount());
+        p.setAmount(req.getAmount());
         p.setMethod(req.getMethod());
         Payment saved = service.createPayment(p);
         return ResponseEntity.created(URI.create("/payments/" + saved.getId())).body(saved);
@@ -69,12 +69,9 @@ public class PaymentController {
     }
 
     @PostMapping("/process")
-    public ResponseEntity<String> processPayment(
-            @RequestParam Long orderId,
-            @RequestParam String paymentMethod) {
-        
-        service.processPayment(orderId, paymentMethod);
-        String message = "Đặt hàng thành công! Thanh toán bằng: " + paymentMethod;
+    public ResponseEntity<String> processPayment(@RequestBody PaymentRequest req) {
+        service.processPayment(req.getOrderId(), req.getMethod().name());
+        String message = "Đặt hàng thành công! Thanh toán bằng: " + req.getMethod();
         return ResponseEntity.ok(message);
     }
 }
