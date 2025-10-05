@@ -52,7 +52,7 @@ public class PaymentService {
         orderClient.updatePaymentStatus(p.getOrderId(), status.name());
         return updated;
     }
-    public Payment processPayment(Long orderId, String method) {
+    public Payment processPayment(Integer orderId, String method) {
     Payment payment = new Payment();
     payment.setOrderId(orderId);
     Payment.PaymentMethod paymentMethod = Payment.PaymentMethod.valueOf(method.toUpperCase());

@@ -1,6 +1,5 @@
 package com.vanhuy.payment_service.dto;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import lombok.AllArgsConstructor;
@@ -15,8 +14,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class PaymentResponse {
     private Long paymentId;           // ID giao dịch thanh toán
-    private Long orderId;             // ID đơn hàng liên quan
-    private BigDecimal amount;        // Số tiền đã thanh toán
+    private Integer orderId;             // ID đơn hàng liên quan
+    private Double amount;        // Số tiền đã thanh toán
     private String method;            // Phương thức thanh toán
     private String status;            // "SUCCESS" | "FAILED" | "PENDING"
     private String transactionCode;   // Mã giao dịch (nếu có)
