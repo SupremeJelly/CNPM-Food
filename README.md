@@ -1,3 +1,6 @@
+# Ưu tiên hàng đầu
+sau khi đặt hàng thì sửa stock của sản phẩm, sửa payment status của order thành PAID
+
 # Spring Boot Microservices Project
 
 A scalable food delivery system designed using Spring Boot microservices architecture, enabling seamless integration and performance.
