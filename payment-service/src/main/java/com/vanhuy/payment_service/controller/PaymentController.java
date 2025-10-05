@@ -34,14 +34,29 @@ public class PaymentController {
         this.service = paymentService;
     }
 
+    // @PostMapping
+    // public ResponseEntity<Payment> create(@RequestBody PaymentRequest req) {
+    //     Payment p = new Payment();
+    //     p.setOrderId(req.getOrderId());
+    //     p.setAmount(req.getAmount());
+    //     p.setMethod(req.getMethod());
+    //     Payment saved = service.createPayment(p);
+    //     return ResponseEntity.created(URI.create("/payments/" + saved.getId())).body(saved);
+    // }
+
     @PostMapping
-    public ResponseEntity<Payment> create(@RequestBody PaymentRequest req) {
-        Payment p = new Payment();
-        p.setOrderId(req.getOrderId());
-        p.setAmount(req.getAmount());
-        p.setMethod(req.getMethod());
-        Payment saved = service.createPayment(p);
-        return ResponseEntity.created(URI.create("/payments/" + saved.getId())).body(saved);
+    public ResponseEntity<?> create(@RequestBody PaymentRequest req) {
+        try {
+            Payment p = new Payment();
+            p.setOrderId(req.getOrderId());
+            p.setAmount(req.getAmount());
+            p.setMethod(req.getMethod());
+            Payment saved = service.createPayment(p);
+            return ResponseEntity.created(URI.create("/payments/" + saved.getId())).body(saved);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error creating payment: " + e.getMessage());
+        }
     }
 
 

@@ -32,16 +32,16 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class PaymentRequest {
 
-    private Long orderId;
+    private Integer orderId;
     private Long userId;           // thêm userId (tùy nhu cầu)
     private BigDecimal amount;     // thay Double bằng BigDecimal
     private Payment.PaymentMethod method;
     
 
-    public Long getOrderId() {
+    public Integer getOrderId() {
         return orderId;
     }
-    public void setOrderId(Long orderId) {
+    public void setOrderId(Integer orderId) {
         this.orderId = orderId;
     }
 
