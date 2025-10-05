@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.vanhuy.payment_service.dto.PaymentRequest;
 import com.vanhuy.payment_service.model.Payment;
@@ -22,13 +23,17 @@ import com.vanhuy.payment_service.service.PaymentService;
 
 
 @RestController
-@RequestMapping("/payments")
+@RequestMapping("/api/v1/payments")
 public class PaymentController {
 
 
     @Autowired
     private PaymentService service;
-
+    
+    // ✅ Inject PaymentService qua constructor
+    public PaymentController(PaymentService paymentService) {
+        this.service = paymentService;
+    }
 
     @PostMapping
     public ResponseEntity<Payment> create(@RequestBody PaymentRequest req) {
@@ -58,10 +63,25 @@ public class PaymentController {
         return service.getByOrderId(orderId);
     }
 
-
     @PutMapping("/{id}/status")
     public ResponseEntity<Payment> updateStatus(@PathVariable Long id, @RequestParam PaymentStatus status) {
         Payment updated = service.updateStatus(id, status);
         return ResponseEntity.ok(updated);
     }
+
+    @PostMapping("/process")
+    public String processPayment(
+            @RequestParam Long orderId,
+            @RequestParam String paymentMethod,
+            RedirectAttributes redirectAttributes) {
+
+        // gọi service để xử lý logic
+        service.processPayment(orderId, paymentMethod);
+
+        // add flash message
+        redirectAttributes.addFlashAttribute("message", "Đặt hàng thành công! Thanh toán bằng: " + paymentMethod);
+
+        // redirect về trang chủ
+        return "redirect:/";
+}
 }

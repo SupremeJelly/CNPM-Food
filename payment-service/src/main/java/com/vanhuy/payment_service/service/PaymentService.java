@@ -52,6 +52,22 @@ public class PaymentService {
         orderClient.updatePaymentStatus(p.getOrderId(), status.name());
         return updated;
     }
+    public Payment processPayment(Long orderId, String method) {
+    Payment payment = new Payment();
+    payment.setOrderId(orderId);
+    Payment.PaymentMethod paymentMethod = Payment.PaymentMethod.valueOf(method.toUpperCase());
+    payment.setMethod(paymentMethod);
+    payment.setStatus(PaymentStatus.SUCCESS); // giả sử thanh toán thành công
+    payment.setCreatedAt(LocalDateTime.now());
+
+    Payment saved = repo.save(payment);
+
+    // cập nhật trạng thái sang Order service
+    orderClient.updatePaymentStatus(orderId, PaymentStatus.SUCCESS.name());
+
+    return saved;
+}
+
 }
 
 

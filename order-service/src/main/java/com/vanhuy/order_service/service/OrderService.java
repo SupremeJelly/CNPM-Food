@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -139,5 +140,17 @@ public class OrderService {
         UserDTO userDTO = userServiceClient.getUserById(userId);
         return  userDTO;
     }
+    @Transactional
+    public void updatePaymentStatus(Integer orderId, String status) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
+        try {
+            order.setPaymentStatus(Order.PaymentStatus.valueOf(status.toUpperCase()));
+        } catch (IllegalArgumentException ex) {
+            throw new RuntimeException("Invalid payment status: " + status);
+        }
+
+        orderRepository.save(order);
+    }
 }
