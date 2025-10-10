@@ -1,6 +1,6 @@
 package com.vanhuy.restaurant_service.controller;
 
-import com.vanhuy.restaurant_service.dto.MenuItemDTO;
+import com.vanhuy.restaurant_service.dto.OrderItemDTO;
 import com.vanhuy.restaurant_service.exception.ResourceNotFoundException;
 import com.vanhuy.restaurant_service.model.Restaurant;
 import com.vanhuy.restaurant_service.service.FileStorageService;
@@ -28,27 +28,27 @@ public class MenuItemController {
     private final FileStorageService imageService;
 
     @PostMapping("/{restaurantId}")
-    public ResponseEntity<MenuItemDTO> createMenuItem(@PathVariable Integer restaurantId, @RequestBody MenuItemDTO menuItemDTO) {
-        MenuItemDTO createdMenuItem = menuItemService.createMenuItem(menuItemDTO ,restaurantId);
+    public ResponseEntity<OrderItemDTO> createMenuItem(@PathVariable Integer restaurantId, @RequestBody OrderItemDTO menuItemDTO) {
+        OrderItemDTO createdMenuItem = menuItemService.createMenuItem(menuItemDTO ,restaurantId);
         return ResponseEntity.ok(createdMenuItem);
     }
 
     @GetMapping("/restaurant/{restaurantId}")
-    public ResponseEntity<List<MenuItemDTO>> getMenuItemsByRestaurantId(@PathVariable Integer restaurantId) {
+    public ResponseEntity<List<OrderItemDTO>> getMenuItemsByRestaurantId(@PathVariable Integer restaurantId) {
         Restaurant restaurant = restaurantService.getRestaurantById(restaurantId);
         if (restaurant == null) {
             return ResponseEntity.notFound().build();
         }
-        List<MenuItemDTO> menuItems = menuItemService.getMenuItemsByRestaurantId(restaurant);
+        List<OrderItemDTO> menuItems = menuItemService.getMenuItemsByRestaurantId(restaurant);
         return ResponseEntity.ok(menuItems);
     }
 
     @PostMapping("/{menuItemId}/upload-image")
-    public ResponseEntity<MenuItemDTO> uploadImage(
+    public ResponseEntity<OrderItemDTO> uploadImage(
             @PathVariable Integer menuItemId,
             @RequestParam("file") MultipartFile file) {
         try {
-            MenuItemDTO menuItemDTO = menuItemService.uploadImage(menuItemId, file);
+            OrderItemDTO menuItemDTO = menuItemService.uploadImage(menuItemId, file);
             return ResponseEntity.ok(menuItemDTO);
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.notFound().build();
