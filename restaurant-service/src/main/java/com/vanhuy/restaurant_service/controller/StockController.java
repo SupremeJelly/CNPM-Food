@@ -1,23 +1,30 @@
 package com.vanhuy.restaurant_service.controller;
 
-import com.vanhuy.restaurant_service.dto.StockDecrementRequest;
+import com.vanhuy.restaurant_service.dto.OrderItemDTO;
 import com.vanhuy.restaurant_service.service.StockService;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-@RestController
-@RequestMapping("/api/v1/stock")
-public class StockController {
+import java.util.List;
 
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/v1/stocks")
+public class StockController {
     private final StockService stockService;
 
-    public StockController(StockService stockService) {
-        this.stockService = stockService;
+    @PostMapping("/decrease")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void decrease(@RequestBody List<OrderItemDTO> items) {
+        stockService.decreaseStock(items);
     }
 
-    @PutMapping("/decrement")
-    public ResponseEntity<Void> decreaseStock(@RequestBody StockDecrementRequest request) {
-        stockService.decreaseStock(request);
-        return ResponseEntity.ok().build();
+    @PostMapping("/increase")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void increase(@RequestBody List<OrderItemDTO> items) {
+        stockService.increaseStock(items);
     }
 }

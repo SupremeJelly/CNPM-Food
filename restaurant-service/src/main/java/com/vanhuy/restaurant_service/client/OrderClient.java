@@ -1,6 +1,6 @@
 package com.vanhuy.restaurant_service.client;
 
-import com.vanhuy.order_service.dto.OrderItemDTO;
+import com.vanhuy.restaurant_service.dto.OrderItemDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

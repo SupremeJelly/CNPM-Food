@@ -8,6 +8,7 @@ import com.vanhuy.order_service.dto.OrderItemResponse;
 import com.vanhuy.order_service.dto.OrderRequest;
 import com.vanhuy.order_service.dto.OrderResponse;
 import com.vanhuy.order_service.dto.UserDTO;
+import com.vanhuy.order_service.dto.OrderItemDTO; 
 import com.vanhuy.order_service.exception.ResourceNotFoundException;
 import com.vanhuy.order_service.model.Order;
 import com.vanhuy.order_service.model.OrderItem;
@@ -159,4 +160,13 @@ public class OrderService {
             throw new RuntimeException("Invalid payment status: " + status, ex);
         }
     }
+
+    public List<OrderItemDTO> getOrderItems(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        return order.getOrderItems().stream()
+                .map(item -> new OrderItemDTO(item.getMenuItemId(), item.getQuantity()))
+                .collect(Collectors.toList());
+    }
+    
 }
