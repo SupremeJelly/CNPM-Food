@@ -140,8 +140,11 @@ jobs:
             ${{ runner.os }}-npm-
 
       - name: Install dependencies
-        run: npm install
-        
+        run: |
+          rm -rf node_modules
+          npm cache clean --force
+          npm install
+
       - name: Set permissions
         run: chmod +x ./node_modules/.bin/ng
 
