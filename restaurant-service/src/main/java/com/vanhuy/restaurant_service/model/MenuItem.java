@@ -23,13 +23,11 @@ public class MenuItem {
     @Column(name = "price", precision = 10, scale = 2)
     private BigDecimal price;
 
-    @Column(name = "stock")
     private Integer stock;
 
-    @Column(name = "image_url")
     private String imageUrl;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "restaurant_id", nullable = false)
     private Restaurant restaurant;
 }
