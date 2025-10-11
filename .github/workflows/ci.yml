@@ -141,6 +141,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        
+      - name: Set permissions
+        run: chmod +x ./node_modules/.bin/ng
 
       - name: Start frontend
         run: npm run build
