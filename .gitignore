@@ -33,3 +33,27 @@ build/
 .vscode/
 
 mysql/data/mysql.sock
+
+# Frontend (Node/Angular) - ignore build output and deps
+/frontend/node_modules/
+/frontend/dist/
+/frontend/build/
+/frontend/.angular/
+/frontend/.cache/
+/frontend/.angular/cache/
+/frontend/*.js
+/frontend/*.js.map
+/frontend/chunk-*.js
+/frontend/*.bundle.js
+/frontend/ngsw-worker.js
+/frontend/karma.conf.js
+
+# Common
+*.log
+.env
+.DS_Store
+Thumbs.db
+
+# ensure Java build dirs ignored (explicit)
+**/target/
+**/build/
