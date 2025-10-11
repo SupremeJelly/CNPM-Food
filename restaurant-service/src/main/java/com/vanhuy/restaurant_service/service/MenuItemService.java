@@ -38,14 +38,13 @@ public class MenuItemService {
     public OrderItemDTO createMenuItem (OrderItemDTO menuItemDTO, Integer restaurantId) {
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new RestaurantNotFoundException("Restaurant not found"));
-        MenuItem menuItem = new MenuItem(
-                menuItemDTO.getMenuItemId(),
-                menuItemDTO.getName(),
-                menuItemDTO.getPrice(),
-                menuItemDTO.getStock(),
-                menuItemDTO.getImageUrl(),
-                restaurant
-        );
+        MenuItem menuItem = MenuItem.builder()
+                .name(menuItemDTO.getName())
+                .price(menuItemDTO.getPrice())
+                .stock(menuItemDTO.getStock())
+                .imageUrl(menuItemDTO.getImageUrl())
+                .restaurant(restaurant)
+                .build();
         menuItemRepository.save(menuItem);
         return toDTO(menuItem);
     }
