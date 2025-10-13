@@ -25,16 +25,12 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Setup Node.js
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
-      - name: Build & test backend (all Maven modules)
-        run: mvn -B -V clean verify
-        env:
-          MAVEN_OPTS: -Xmx1g
+          cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install frontend deps
         working-directory: frontend
@@ -64,28 +60,28 @@ jobs:
           git --no-pager log -1 --pretty=oneline
 
       - name: Ensure PR QUY-TRÌNH-1 -> main exists
-        uses: actions/github-script@v6
-        with:
+          echo "GITHUB_REF=$GITHUB_REF"
+          git --no-pager log -1 --pretty=oneline
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
+      - name: Ensure PR QUY-TRÌNH-1 -> main exists
+        uses: actions/github-script@v6
+        with:onst head = "QUY-TRÌNH-1";
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |epo = context.repo.repo;
             const base = "main";
-            const head = "QUY-TRÌNH-1";
-            const owner = context.repo.owner;
+            const head = "QUY-TRÌNH-1"; github.rest.pulls.list({
+            const owner = context.repo.owner;head}`, base, state: "open"
             const repo = context.repo.repo;
 
             const { data: prs } = await github.rest.pulls.list({
               owner, repo, head: `${owner}:${head}`, base, state: "open"
-            });
-
+            });lse {
+              const { data: pr } = await github.rest.pulls.create({
             if (prs.length > 0) {
               console.log(`PR already exists: ${prs[0].html_url}`);
-            } else {
+            } else {,
               const { data: pr } = await github.rest.pulls.create({
-                owner, repo,
+                owner, repo,atic PR created by workflow after push to QUY-TRÌNH-1"
                 title: `Auto PR: ${head} -> ${base}`,
-                head,
-                base,
-                body: "Automatic PR created by workflow after push to QUY-TRÌNH-1"
-              });
-              console.log(`Created PR: ${pr.html_url}`);
-            }
+                head,.log(`Created PR: ${pr.html_url}`);
+                base,                body: "Automatic PR created by workflow after push to QUY-TRÌNH-1"              });              console.log(`Created PR: ${pr.html_url}`);            }
