@@ -1,0 +1,48 @@
+name: Auto PR -> QUY-TRÌNH-2
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  push:
+    branches: [ 'QUY-TRÌNH-2' ]
+
+jobs:
+  create-pr-qt2-to-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout QUY-TRÌNH-2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: 'QUY-TRÌNH-2'
+
+      - name: "Debug: show last commit"
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          git --no-pager log -1 --pretty=oneline
+
+      - name: Ensure PR from QUY-TRÌNH-2 -> main exists (create if missing)
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const base = "main";
+            const head = "QUY-TRÌNH-2";
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const { data: prs } = await github.rest.pulls.list({
+              owner, repo, head: `${owner}:${head}`, base, state: "open"
+            });
+            if (prs.length > 0) {
+              core.info(`PR already exists: ${prs[0].html_url}`);
+            } else {
+              const { data: pr } = await github.rest.pulls.create({
+                owner, repo,
+                title: `Auto PR: ${head} -> ${base}`,
+                head, base,
+                body: "Automatic PR created by workflow after push to QUY-TRÌNH-2"
+              });
+              core.info(`Created PR: ${pr.html_url}`);
+            }
