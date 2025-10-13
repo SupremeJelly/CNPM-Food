@@ -2,7 +2,10 @@ import { Component } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import { Order } from '../../dto/order/order-response';
 import { ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 import { OrderService } from '../../service/order.service';
+import { OrderDataService } from '../../service/order-data.service';
+
 
 @Component({
   selector: 'app-order-confirmation',
@@ -14,7 +17,10 @@ export class OrderConfirmationComponent {
 
   constructor(
     private orderService : OrderService,
-    private route : ActivatedRoute
+    private route : ActivatedRoute,
+    private router: Router,
+    private orderDataService: OrderDataService
+
   ) { 
   }
   ngOnInit(): void {
@@ -25,4 +31,25 @@ export class OrderConfirmationComponent {
       })
     );
   }
+
+  goToPayment(order: Order) {
+      this.orderDataService.setOrder(order);
+      this.router.navigate(['/payment']);
+  }
+
+  // goToPayment(order: Order) {
+  //   this.router.navigate(['/payment']
+  //     , {
+  //     queryParams: {
+  //       orderId: order.orderId,
+  //       total: order.totalAmount,
+  //       status: order.status
+  //     }
+  //   });
+  // }
+
+  // goToPayment() {
+  //   this.router.navigate(['/payment']);
+  // }
+
 }
