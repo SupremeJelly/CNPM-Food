@@ -1,0 +1,32 @@
+name: Auto PR -> QUY-TRÌNH-1
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  push:
+    branches: [ 'QUY-TRÌNH-1' ]
+
+jobs:
+  pr-qt1-to-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout QUY-TRÌNH-1
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: 'QUY-TRÌNH-1'
+
+      - name: Create PR from QUY-TRÌNH-1 -> main
+        uses: peter-evans/create-pull-request@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          head: QUY-TRÌNH-1
+          title: 'Auto PR: QUY-TRÌNH-1 -> main'
+          body: |
+            This PR was created automatically from branch `QUY-TRÌNH-1` after a push.
+          draft: false
+          delete-branch: false
+          labels: auto-pr,quy-trinh-1

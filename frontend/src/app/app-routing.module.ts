@@ -13,6 +13,7 @@ import { ForgotPasswordComponent } from './component/forgot-password/forgot-pass
 import { ResetPasswordComponent } from './component/reset-password/reset-password.component';
 import { UnauthorizedComponent } from './component/unauthorized/unauthorized.component';
 import { DashboardComponent } from './component/admin/dashboard/dashboard.component';
+import { PaymentComponent } from './component/payment/payment.component';
 
 const routes: Routes = [
   { path: '', component: ListRestaurantComponent },
@@ -26,11 +27,18 @@ const routes: Routes = [
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
   { path: 'unauthorized', component:  UnauthorizedComponent},
-  { path: 'dashboard', 
-    component: DashboardComponent, 
-    canActivate: [AuthGuard], 
-    data: { roles: ['ROLE_ADMIN'] },
-    loadChildren: () => import('./component/admin/dashboard-routing/dashboard-routing-routing.module').then(m => m.DashboardRoutingRoutingModule)},
+  // { path: 'dashboard', 
+  //   component: DashboardComponent, 
+  //   canActivate: [AuthGuard], 
+  //   data: { roles: ['ROLE_ADMIN'] },
+  //   loadChildren: () => import('./component/admin/dashboard-routing/dashboard-routing-routing.module').then(m => m.DashboardRoutingRoutingModule)},
+  { path: 'payment', component:  PaymentComponent , canActivate: [AuthGuard]},
+  {
+    path: 'dashboard',
+    component: DashboardComponent,
+    canActivate: [AuthGuard],
+    data: { roles: ['ROLE_ADMIN'] }
+  },
 
 ];
 
