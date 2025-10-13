@@ -6,23 +6,23 @@ permissions:
 
 on:
   push:
-    branches: [ 'QUY-TRÌNH-3' ]
+    branches: [ "QUY-TRÌNH-3" ]
 
 jobs:
   create-pr-qt3-to-main:
     runs-on: ubuntu-latest
     steps:
-      - name: "Checkout QUY-TRÌNH-3"
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: "Debug: show last commit"
+      - name: Show last commit
         run: |
           echo "GITHUB_REF=$GITHUB_REF"
           git --no-pager log -1 --pretty=oneline
 
-      - name: "Ensure PR from QUY-TRÌNH-3 -> main exists (create if missing)"
+      - name: Ensure PR QUY-TRÌNH-3 -> main exists
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
