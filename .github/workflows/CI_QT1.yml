@@ -9,24 +9,83 @@ on:
     branches: [ 'QUY-TRÌNH-1' ]
 
 jobs:
-  pr-qt1-to-main:
+  build-and-test:
+    name: Build & Test (Maven + Frontend)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout QUY-TRÌNH-1
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: 'QUY-TRÌNH-1'
 
-      - name: Create PR from QUY-TRÌNH-1 -> main
-        uses: peter-evans/create-pull-request@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          base: main
-          head: QUY-TRÌNH-1
-          title: 'Auto PR: QUY-TRÌNH-1 -> main'
-          body: |
-            This PR was created automatically from branch `QUY-TRÌNH-1` after a push.
-          draft: false
-          delete-branch: false
-          labels: auto-pr,quy-trinh-1
+          distribution: temurin
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Build & test backend (all Maven modules)
+        run: mvn -B -V clean verify
+        env:
+          MAVEN_OPTS: -Xmx1g
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm exec -- ng build --configuration=production
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test --if-present
+
+  create-pr-qt1-to-main:
+    name: Create PR QUY-TRÌNH-1 -> main (if missing)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show last commit
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          git --no-pager log -1 --pretty=oneline
+
+      - name: Ensure PR QUY-TRÌNH-1 -> main exists
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const base = "main";
+            const head = "QUY-TRÌNH-1";
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner, repo, head: `${owner}:${head}`, base, state: "open"
+            });
+
+            if (prs.length > 0) {
+              console.log(`PR already exists: ${prs[0].html_url}`);
+            } else {
+              const { data: pr } = await github.rest.pulls.create({
+                owner, repo,
+                title: `Auto PR: ${head} -> ${base}`,
+                head,
+                base,
+                body: "Automatic PR created by workflow after push to QUY-TRÌNH-1"
+              });
+              console.log(`Created PR: ${pr.html_url}`);
+            }
