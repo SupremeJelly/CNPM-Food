@@ -31,6 +31,11 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
+      - name: Build & test backend (all Maven modules)
+        run: mvn -B -V clean verify
+        env:
+          MAVEN_OPTS: -Xmx1g
+
       - name: Install frontend deps
         working-directory: frontend
         run: npm ci
