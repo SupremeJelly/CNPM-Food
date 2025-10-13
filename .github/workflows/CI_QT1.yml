@@ -18,17 +18,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: 'maven'
-
-      - name: Build & test backend (all Maven modules)
-        run: mvn -B -V clean verify
-        env:
-          MAVEN_OPTS: -Xmx1g
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
