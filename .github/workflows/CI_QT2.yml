@@ -16,7 +16,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: 'QUY-TRÌNH-2'
 
       - name: "Debug: show last commit"
         run: |
@@ -32,17 +31,21 @@ jobs:
             const head = "QUY-TRÌNH-2";
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+
+            // tìm PR mở với head owner:branch và base main
             const { data: prs } = await github.rest.pulls.list({
               owner, repo, head: `${owner}:${head}`, base, state: "open"
             });
+
             if (prs.length > 0) {
-              core.info(`PR already exists: ${prs[0].html_url}`);
+              console.log(`PR already exists: ${prs[0].html_url}`);
             } else {
               const { data: pr } = await github.rest.pulls.create({
                 owner, repo,
                 title: `Auto PR: ${head} -> ${base}`,
-                head, base,
+                head,      // head là QUY-TRÌNH-2
+                base,      // base là main
                 body: "Automatic PR created by workflow after push to QUY-TRÌNH-2"
               });
-              core.info(`Created PR: ${pr.html_url}`);
+              console.log(`Created PR: ${pr.html_url}`);
             }
