@@ -1,0 +1,62 @@
+name: Auto merge QUY-TRÌNH-3 -> main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  push:
+    branches: [ "QUY-TRÌNH-3" ]
+
+jobs:
+  merge-qt3-into-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ⚙️ Merge từ QUY-TRÌNH-3 vào main, giữ main khi conflict
+      - name: Merge QUY-TRÌNH-3 into main (prefer main)
+        run: |
+          git fetch origin main
+          git fetch origin QUY-TRÌNH-3
+
+          git checkout main
+          git merge origin/QUY-TRÌNH-3 --strategy-option=ours --no-edit || true
+          git push origin main || echo "Push skipped (branch protection?)"
+
+      # 🧾 Tạo hoặc cập nhật PR nếu muốn review thủ công
+      - name: Ensure PR QUY-TRÌNH-3 -> main exists
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const base = "main";
+            const head = "QUY-TRÌNH-3";
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner, repo, head: `${owner}:${head}`, base, state: "open"
+            });
+
+            if (prs.length > 0) {
+              console.log(`PR already exists: ${prs[0].html_url}`);
+            } else {
+              const { data: pr } = await github.rest.pulls.create({
+                owner, repo,
+                title: `Auto PR (merged main-preferred): ${head} -> ${base}`,
+                head,
+                base,
+                body: "Automatically merged QUY-TRÌNH-3 into main (kept main where conflicts existed)"
+              });
+              console.log(`Created PR: ${pr.html_url}`);
+            }
