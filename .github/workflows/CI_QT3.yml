@@ -12,15 +12,21 @@ jobs:
   create-pr-qt3-to-main:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Show last commit
+      - name: Set up Git user
         run: |
-          echo "GITHUB_REF=$GITHUB_REF"
-          git --no-pager log -1 --pretty=oneline
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge main into QUY-TRÌNH-3 (keep main’s version)
+        run: |
+          git fetch origin main
+          git merge origin/main --strategy-option=theirs --no-edit || true
+          git push origin HEAD:QUY-TRÌNH-3
 
       - name: Ensure PR QUY-TRÌNH-3 -> main exists
         uses: actions/github-script@v6
@@ -44,7 +50,7 @@ jobs:
                 title: `Auto PR: ${head} -> ${base}`,
                 head,
                 base,
-                body: "Automatic PR created by workflow after push to QUY-TRÌNH-3"
+                body: "Automatic PR created after merging main (keeping main’s version)"
               });
               console.log(`Created PR: ${pr.html_url}`);
             }
