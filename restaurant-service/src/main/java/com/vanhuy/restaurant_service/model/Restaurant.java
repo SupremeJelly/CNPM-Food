@@ -21,5 +21,6 @@ public class Restaurant {
     @Column(name = "address", nullable = false)
     private String address;
 
+    @Column(name = "image")
     private String image;
 }

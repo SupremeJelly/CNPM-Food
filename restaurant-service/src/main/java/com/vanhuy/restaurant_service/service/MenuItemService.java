@@ -1,6 +1,6 @@
 package com.vanhuy.restaurant_service.service;
 
-import com.vanhuy.restaurant_service.dto.MenuItemDTO;
+import com.vanhuy.restaurant_service.dto.OrderItemDTO;
 import com.vanhuy.restaurant_service.exception.RestaurantNotFoundException;
 import com.vanhuy.restaurant_service.model.MenuItem;
 import com.vanhuy.restaurant_service.model.Restaurant;
@@ -28,29 +28,28 @@ public class MenuItemService {
     private String baseUrl;
 
     @Cacheable(value = "menuItems", key = "#restaurant.restaurantId")
-    public List<MenuItemDTO> getMenuItemsByRestaurantId(Restaurant restaurant) {
+    public List<OrderItemDTO> getMenuItemsByRestaurantId(Restaurant restaurant) {
         List<MenuItem> menuItems = menuItemRepository.findByRestaurant(restaurant);
         return menuItems.stream()
                 .map(this::toDTO)
                 .toList();
     }
 
-    public MenuItemDTO createMenuItem (MenuItemDTO menuItemDTO, Integer restaurantId) {
+    public OrderItemDTO createMenuItem (OrderItemDTO menuItemDTO, Integer restaurantId) {
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new RestaurantNotFoundException("Restaurant not found"));
-        MenuItem menuItem = new MenuItem(
-                menuItemDTO.menuItemId(),
-                menuItemDTO.name(),
-                menuItemDTO.price(),
-                menuItemDTO.stock(),
-                menuItemDTO.imageUrl(),
-                restaurant
-        );
+        MenuItem menuItem = MenuItem.builder()
+                .name(menuItemDTO.getName())
+                .price(menuItemDTO.getPrice())
+                .stock(menuItemDTO.getStock())
+                .imageUrl(menuItemDTO.getImageUrl())
+                .restaurant(restaurant)
+                .build();
         menuItemRepository.save(menuItem);
         return toDTO(menuItem);
     }
 
-    public MenuItemDTO uploadImage(Integer menuItemId, MultipartFile file) throws IOException {
+    public OrderItemDTO uploadImage(Integer menuItemId, MultipartFile file) throws IOException {
         MenuItem menuItem = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new RestaurantNotFoundException("Menu item not found"));
 
@@ -69,11 +68,11 @@ public class MenuItemService {
         return menuItem.getPrice();
     }
 
-    private MenuItemDTO toDTO(MenuItem menuItem) {
+    private OrderItemDTO toDTO(MenuItem menuItem) {
         String imageUrl = Optional.ofNullable(menuItem.getImageUrl())
                 .map(fileName -> baseUrl + "/api/v1/menu-items/images/" + fileName)
                 .orElse(null);
-        return new MenuItemDTO(
+        return new OrderItemDTO(
                 menuItem.getItemId(),
                 menuItem.getName(),
                 menuItem.getPrice(),
