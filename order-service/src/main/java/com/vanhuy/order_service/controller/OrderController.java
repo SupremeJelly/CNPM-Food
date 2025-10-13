@@ -2,6 +2,7 @@ package com.vanhuy.order_service.controller;
 
 import com.vanhuy.order_service.dto.OrderRequest;
 import com.vanhuy.order_service.dto.OrderResponse;
+import com.vanhuy.order_service.dto.OrderItemDTO;
 import com.vanhuy.order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
 
@@ -11,6 +12,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List; 
 
 @RestController
 @RequiredArgsConstructor
@@ -39,4 +42,17 @@ public class OrderController {
         Page<OrderResponse> orders = orderService.getAllOrders(pageable);
         return ResponseEntity.ok(orders);
     }
+    @PutMapping("/{orderId}/payment-status")
+    public ResponseEntity<String> updatePaymentStatus(
+            @PathVariable Integer orderId,
+            @RequestParam String status) {
+        orderService.updatePaymentStatus(orderId, status);
+        return ResponseEntity.ok("Payment status updated successfully!");
+    }
+
+    @GetMapping("/api/v1/orders/{orderId}/items")
+    public List<OrderItemDTO> getOrderItems(@PathVariable Integer orderId) {
+        return orderService.getOrderItems(orderId); // trả về danh sách menuItemId + quantity
+    }
+
 }

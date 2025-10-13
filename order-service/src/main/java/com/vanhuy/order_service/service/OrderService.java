@@ -8,6 +8,7 @@ import com.vanhuy.order_service.dto.OrderItemResponse;
 import com.vanhuy.order_service.dto.OrderRequest;
 import com.vanhuy.order_service.dto.OrderResponse;
 import com.vanhuy.order_service.dto.UserDTO;
+import com.vanhuy.order_service.dto.OrderItemDTO; 
 import com.vanhuy.order_service.exception.ResourceNotFoundException;
 import com.vanhuy.order_service.model.Order;
 import com.vanhuy.order_service.model.OrderItem;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -139,5 +141,32 @@ public class OrderService {
         UserDTO userDTO = userServiceClient.getUserById(userId);
         return  userDTO;
     }
+    @Transactional
+    public void updatePaymentStatus(Integer orderId, String status) {
+        logger.info("[OrderService] Updating payment status for order {} to '{}'", orderId, status);
 
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> {
+                logger.error("[OrderService] Order not found: {}", orderId);
+                return new RuntimeException("Order not found: " + orderId);
+            });
+
+        try {
+            order.setPaymentStatus(Order.PaymentStatus.valueOf(status.toUpperCase()));
+            orderRepository.save(order);
+            logger.info("[OrderService] Payment status updated successfully: {}", order.getPaymentStatus());
+        } catch (IllegalArgumentException ex) {
+            logger.error("[OrderService] Invalid payment status received: '{}'", status);
+            throw new RuntimeException("Invalid payment status: " + status, ex);
+        }
+    }
+
+    public List<OrderItemDTO> getOrderItems(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        return order.getOrderItems().stream()
+                .map(item -> new OrderItemDTO(item.getMenuItemId(), item.getQuantity()))
+                .collect(Collectors.toList());
+    }
+    
 }
