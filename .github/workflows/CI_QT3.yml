@@ -16,14 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Sync main into QUY-TRÌNH-3 before PR
-        run: |
-          git fetch origin main
-          git checkout QUY-TRÌNH-3
-          git merge origin/main --no-edit || true
-          git push origin QUY-TRÌNH-3
-
+          
       - name: Show last commit
         run: |
           echo "GITHUB_REF=$GITHUB_REF"
