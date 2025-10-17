@@ -22,6 +22,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Sync main into QUY-TRÌNH-4
+        run: |
+          git fetch origin main
+          git merge origin/main --no-edit || echo "No changes to merge"
+          git push origin QUY-TRÌNH-4    
+
       - name: Show last commit
         run: |
           echo "GITHUB_REF=$GITHUB_REF"
