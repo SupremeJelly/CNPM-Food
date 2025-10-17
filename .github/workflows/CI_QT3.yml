@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
       - name: Show last commit
         run: |
           echo "GITHUB_REF=$GITHUB_REF"
@@ -48,3 +48,11 @@ jobs:
               });
               console.log(`Created PR: ${pr.html_url}`);
             }
+          
+      - name: Auto merge the PR (if created)
+        if: steps.create_pr.outputs.pull-request-number != ''
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
+          merge-method: squash
