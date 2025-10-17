@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+"# New Main" 
+=======
 # Spring Boot Microservices Project
 
 A scalable food delivery system designed using Spring Boot microservices architecture, enabling seamless integration and performance.
@@ -89,3 +92,4 @@ Each microservice in this project can be run as a standalone Spring Boot applica
 
 
 
+>>>>>>> f05effe857e74fd665580882273a19f19c624d59
