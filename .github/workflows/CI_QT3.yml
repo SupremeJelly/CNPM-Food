@@ -21,13 +21,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Sync main into QUY-TRÌNH-3 before PR
-        run: |
-          git fetch origin main
-          git checkout QUY-TRÌNH-3
-          git merge origin/main --no-edit || true
-          git push origin QUY-TRÌNH-3
-
       - name: Show last commit
         run: |
           echo "GITHUB_REF=$GITHUB_REF"
@@ -59,3 +52,11 @@ jobs:
               });
               console.log(`Created PR: ${pr.html_url}`);
             }
+          
+      - name: Auto merge the PR (if created)
+        if: steps.create_pr.outputs.pull-request-number != ''
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
+          merge-method: squash
