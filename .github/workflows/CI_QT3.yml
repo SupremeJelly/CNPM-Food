@@ -3,6 +3,7 @@ name: Auto PR -> QUY-TRÌNH-3
 permissions:
   contents: write
   pull-requests: write
+  workflows: write
 
 on:
   push:
@@ -42,6 +43,7 @@ jobs:
             });
 
             if (prs.length > 0) {
+              core.setOutput("pull-request-number", prs[0].number);
               console.log(`PR already exists: ${prs[0].html_url}`);
             } else {
               const { data: pr } = await github.rest.pulls.create({
@@ -51,6 +53,7 @@ jobs:
                 base,
                 body: "Automatic PR created by workflow after push to QUY-TRÌNH-3"
               });
+              core.setOutput("pull-request-number", pr.number);
               console.log(`Created PR: ${pr.html_url}`);
             }
 
