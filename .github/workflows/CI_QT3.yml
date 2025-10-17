@@ -38,6 +38,7 @@ jobs:
             });
 
             if (prs.length > 0) {
+              core.setOutput("pull-request-number", prs[0].number);
               console.log(`PR already exists: ${prs[0].html_url}`);
             } else {
               const { data: pr } = await github.rest.pulls.create({
@@ -47,6 +48,7 @@ jobs:
                 base,
                 body: "Automatic PR created by workflow after push to QUY-TRÌNH-3"
               });
+              core.setOutput("pull-request-number", pr.number);
               console.log(`Created PR: ${pr.html_url}`);
             }
 
