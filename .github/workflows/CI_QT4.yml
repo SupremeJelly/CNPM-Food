@@ -22,12 +22,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Sync main into QUY-TRÌNH-4 (via rebase)
-        run: |
-          git fetch origin main
-          git rebase origin/main || git rebase --abort
-          git push origin QUY-TRÌNH-4 --force-with-lease
-
       - name: Show last commit
         run: |
           echo "GITHUB_REF=$GITHUB_REF"
