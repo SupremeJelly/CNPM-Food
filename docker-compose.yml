@@ -1,3 +1,47 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: food_order_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # optional: put init SQL files (create DBs/users) in ./mysql-init
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD","mysqladmin","ping","-h","localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cnpm-net
+
+  order-service:
+    image: order-service:latest
+    container_name: order-service
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/food_order_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_USERNAME: "appuser"
+      SPRING_DATASOURCE_PASSWORD: "apassword"
+    ports:
+      - "8083:8083"
+    depends_on:
+      - mysql
+    networks:
+      - cnpm-net
+
+volumes:
+  mysql-data:
+
+networks:
+  cnpm-net:
+    driver: bridge
 # services:
 #   zookeeper:
 #     image: confluentinc/cp-zookeeper:6.2.10
@@ -21,77 +65,53 @@
 #       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 #       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+#   eureka-server:
+#     build: ./eureka-server
+#     ports:
+#       - 8761:8761
 
-services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:6.2.10
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - 22181:2181
+#   api-gateway:
+#     build: ./api-gateway
+#     ports:
+#       - 8080:8080
+#     depends_on:
+#       - eureka-server
 
-  kafka:
-    image: confluentinc/cp-kafka:6.2.10
-    depends_on:
-      - zookeeper
-    ports:
-      - 29092:29092
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+#   user-service:
+#     build: ./user-service
+#     ports:
+#       - 8081:8081
+#     depends_on:
+#       - eureka-server
+#       - mysql
 
-  eureka-server:
-    build: ./eureka-server
-    ports:
-      - 8761:8761
+#   restaurant-service:
+#     build: ./restaurant-service
+#     ports:
+#       - 8082:8082
+#     depends_on:
+#       - eureka-server
+#       - mysql
 
-  api-gateway:
-    build: ./api-gateway
-    ports:
-      - 8080:8080
-    depends_on:
-      - eureka-server
+#   order-service:
+#     build: ./order-service
+#     ports:
+#       - 8083:8083
+#     depends_on:
+#       - eureka-server
+#       - mysql
 
-  user-service:
-    build: ./user-service
-    ports:
-      - 8081:8081
-    depends_on:
-      - eureka-server
-      - mysql
+#   frontend:
+#     build: ./frontend
+#     ports:
+#       - 4200:4200
+#     depends_on:
+#       - api-gateway
 
-  restaurant-service:
-    build: ./restaurant-service
-    ports:
-      - 8082:8082
-    depends_on:
-      - eureka-server
-      - mysql
-
-  order-service:
-    build: ./order-service
-    ports:
-      - 8083:8083
-    depends_on:
-      - eureka-server
-      - mysql
-
-  frontend:
-    build: ./frontend
-    ports:
-      - 4200:4200
-    depends_on:
-      - api-gateway
-
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: food_order_db
-    ports:
-      - 3306:3306
+#   mysql:
+#     image: mysql:8.0
+#     environment:
+#       MYSQL_ROOT_PASSWORD: root
+#       MYSQL_DATABASE: food_order_db
+#     ports:
+#       - 3306:3306
