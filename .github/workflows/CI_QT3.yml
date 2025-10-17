@@ -3,7 +3,6 @@ name: Auto PR -> QUY-TRÌNH-3
 permissions:
   contents: write
   pull-requests: write
-  workflows: write
 
 on:
   push:
