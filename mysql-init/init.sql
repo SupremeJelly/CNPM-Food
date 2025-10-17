@@ -1,5 +1,5 @@
 CREATE DATABASE user_db;
-CREATE USER IF NOT EXISTS 'userservice'@'%' IDENTIFIED BY 'user';
+CREATE USER IF NOT EXISTS 'userservice'@'%' IDENTIFIED WITH caching_sha2_password BY 'user';
 GRANT ALL PRIVILEGES ON user_db.* TO 'userservice'@'%';
 GRANT ALL PRIVILEGES ON *.* TO 'userservice'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
@@ -11,13 +11,13 @@ GRANT ALL PRIVILEGES ON *.* TO 'orderservice'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 
 CREATE DATABASE restaurant_db;
-CREATE USER 'restaurantservice'@'%' IDENTIFIED BY 'res';
+CREATE USER IF NOT EXISTS 'restaurantservice'@'%' IDENTIFIED WITH caching_sha2_password BY 'res';
 GRANT ALL PRIVILEGES ON restaurant_db.* TO 'restaurantservice'@'%';
 GRANT ALL PRIVILEGES ON *.* TO 'restaurantservice'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 
 CREATE DATABASE payment_db;
-CREATE USER 'paymentservice'@'%' IDENTIFIED BY 'pay';
+CREATE USER IF NOT EXISTS 'paymentservice'@'%' IDENTIFIED WITH caching_sha2_password BY 'pay';
 GRANT ALL PRIVILEGES ON payment_db.* TO 'paymentservice'@'%';
 GRANT ALL PRIVILEGES ON *.* TO 'paymentservice'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
