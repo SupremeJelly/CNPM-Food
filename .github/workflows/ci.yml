@@ -90,7 +90,7 @@ jobs:
           chmod +x mvnw
           ./mvnw clean package -DskipTests
   
-    backend-payment:
+  backend-payment:
     runs-on: ubuntu-latest
     defaults:
       run:
