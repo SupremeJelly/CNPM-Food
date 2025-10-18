@@ -89,6 +89,33 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw clean package -DskipTests
+  
+    backend-payment:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./payment-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: Build and run payment-service
+        run: |
+          chmod +x mvnw
+          ./mvnw clean package -DskipTests
 
   backend-api-gateway:
     runs-on: ubuntu-latest
