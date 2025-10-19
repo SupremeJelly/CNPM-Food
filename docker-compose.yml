@@ -1,10 +1,9 @@
 services:
-  mysql:
+  mysql-db:
     image: mysql:8.0
     container_name: mysql-db
     environment:
       MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: food_order_db
       MYSQL_USER: appuser
       MYSQL_PASSWORD: apassword
     ports:
@@ -22,17 +21,97 @@ services:
     networks:
       - cnpm-net
 
+  payment-service:
+      build:
+        context: ./payment-service
+        dockerfile: Dockerfile
+      container_name: payment-service
+      environment:
+        SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/payment_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+        SPRING_DATASOURCE_USERNAME: "paymentservice"
+        SPRING_DATASOURCE_PASSWORD: "pay"
+      ports:
+        - "8085:8085"
+      depends_on:
+        - mysql-db
+      networks:
+        - cnpm-net
+
   order-service:
-    image: order-service:latest
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
     container_name: order-service
     environment:
-      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/food_order_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-      SPRING_DATASOURCE_USERNAME: "appuser"
-      SPRING_DATASOURCE_PASSWORD: "apassword"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/order_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_USERNAME: "orderservice"
+      SPRING_DATASOURCE_PASSWORD: "order"
     ports:
       - "8083:8083"
     depends_on:
-      - mysql
+      - mysql-db
+    networks:
+      - cnpm-net
+
+  restaurant-service:
+    build:
+      context: ./restaurant-service
+      dockerfile: Dockerfile
+    container_name: restaurant-service
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/restaurant_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_USERNAME: "restaurantservice"
+      SPRING_DATASOURCE_PASSWORD: "res"
+    ports:
+      - "8082:8082"
+    depends_on:
+      - mysql-db
+    networks:
+      - cnpm-net
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/user_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_USERNAME: "userservice"
+      SPRING_DATASOURCE_PASSWORD: "user"
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mysql-db
+    networks:
+      - cnpm-net
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - order-service
+      - restaurant-service
+      - user-service
+      - payment-service
+    networks:
+      - cnpm-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api-gateway
     networks:
       - cnpm-net
 
@@ -42,6 +121,8 @@ volumes:
 networks:
   cnpm-net:
     driver: bridge
+
+
 # services:
 #   zookeeper:
 #     image: confluentinc/cp-zookeeper:6.2.10
