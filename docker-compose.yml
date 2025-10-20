@@ -91,7 +91,7 @@ services:
       dockerfile: Dockerfile
     container_name: api-gateway
     ports:
-      - "8080:8080"
+      - "9000:9000"
     depends_on:
       - order-service
       - restaurant-service
