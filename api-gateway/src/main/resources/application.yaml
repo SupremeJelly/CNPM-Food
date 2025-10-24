@@ -8,7 +8,7 @@ spring:
     gateway:
       routes:
         - id: restaurant-service
-          uri: http://restaurant-service:8082
+          uri: http://localhost:8082
           predicates:
             - Path=/api/v1/restaurants/**, /api/v1/menu-items/**
           filters:
@@ -23,7 +23,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: order-service
-          uri: http://order-service:8083
+          uri: http://localhost:8083
           predicates:
             - Path=/api/v1/orders/**
           filters:
@@ -38,10 +38,12 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: user-service
-          uri: http://user-service:8081
+          uri: http://localhost:8081
           predicates:
             - Path=/api/v1/users/**, /api/v1/auth/**
           filters:
+            - RemoveRequestHeader=Cookie
+            - name: RequestHeaderToRequestUri
             - name: CircuitBreaker
               args:
                 name: userCircuitBreaker
@@ -53,7 +55,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: payment-service
-          uri: http://payment-service:8085
+          uri: http://localhost:8085
           predicates:
             - Path=/api/v1/payments/**
           filters:

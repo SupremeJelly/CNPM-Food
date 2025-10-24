@@ -93,6 +93,7 @@ services:
     ports:
       - "9000:9000"
     depends_on:
+      - mysql-db
       - order-service
       - restaurant-service
       - user-service
