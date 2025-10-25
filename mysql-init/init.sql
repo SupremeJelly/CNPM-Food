@@ -22,9 +22,66 @@ GRANT ALL PRIVILEGES ON payment_db.* TO 'paymentservice'@'%';
 GRANT ALL PRIVILEGES ON *.* TO 'paymentservice'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 
+USE order_db;
 
+-- Tạo bảng 'orders' (phải tạo bảng này trước 'order_items')
+CREATE TABLE orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    order_date DATETIME NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    payment_status VARCHAR(20) NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    recipient_name VARCHAR(50),
+    contact_email VARCHAR(50),
+    shipping_address VARCHAR(255),
+    contact_phone VARCHAR(20)
+);
+
+-- Tạo bảng 'order_items' (phụ thuộc vào bảng 'orders')
+CREATE TABLE order_items (
+    order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    menu_item_id INT NOT NULL,
+    quantity INT NOT NULL,
+    subtotal DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+);
+
+USE payment_db;
+
+-- Tạo bảng 'payments'
+CREATE TABLE payments (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    amount DECIMAL(10, 2),
+    method VARCHAR(30),
+    status VARCHAR(20),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 USE restaurant_db;
+
+-- Tạo bảng 'restaurants' (phải tạo bảng này trước 'menu_items')
+CREATE TABLE restaurants (
+    restaurant_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    image VARCHAR(255)
+);
+
+-- Tạo bảng 'menu_items' (phụ thuộc vào bảng 'restaurants')
+CREATE TABLE menu_items (
+    item_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    price DECIMAL(10, 2),
+    stock INT,
+    image_url VARCHAR(255),
+    restaurant_id INT NOT NULL,
+    FOREIGN KEY (restaurant_id) REFERENCES restaurants(restaurant_id)
+);
+
 INSERT INTO restaurants (address, image, name) VALUES
 ('123 Lê Văn Sỹ, Quận 3, TP.HCM', 'images/burger_king.jpg', 'Burger King'),
 ('456 Nguyễn Trãi, Quận 5, TP.HCM', 'images/kfc.jpg', 'KFC'),
@@ -60,6 +117,36 @@ INSERT INTO menu_items (image_url, name, price, stock, restaurant_id) VALUES
 ('images/milkshake_strawberry.jpg', 'Sữa lắc dâu', 45000, 60, 3);
 
 Use user_db;
+
+-- 1. Tạo bảng 'users' (phải tạo trước 'user_roles' và 'password_reset_token')
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    address VARCHAR(255),
+    profile_image_name VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- 2. Tạo bảng 'user_roles' (từ @ElementCollection)
+CREATE TABLE user_roles (
+    user_id INT NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    PRIMARY KEY (user_id, role),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- 3. Tạo bảng 'password_reset_token'
+CREATE TABLE password_reset_token (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    user_id INT NOT NULL UNIQUE,
+    expiry_date DATETIME NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
 INSERT INTO users (address, email, is_active, password, profile_image_name, username) VALUES
 ('123 Street A', 'user1@example.com', 1, 'password1', NULL, 'user1'),
 ('123 Street B', 'user2@example.com', 1, 'password2', NULL, 'user2'),
