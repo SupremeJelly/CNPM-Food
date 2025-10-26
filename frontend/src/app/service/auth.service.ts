@@ -76,22 +76,46 @@ export class AuthService {
 
   // Error handler
   private handleError(error: HttpErrorResponse): Observable<never> {
-    let errorMessage = '';
+          let errorMessage = '';
 
-    if (error.error instanceof ErrorEvent) {
-      // Client-side error
-      errorMessage = `Client-side error: ${error.error.message}`;
-    } else {
-      // Server-side error
-      const errorResponse = error.error;  // This is where your ErrorResponse will be
-      // errorMessage = `Server-side error: ${errorResponse.message} (Status: ${errorResponse.status})\nDetails: ${errorResponse.details}`;
-      errorMessage = errorResponse.message;
-    }
+      if (error.error instanceof ErrorEvent) {
 
-    // Optionally, you can log or display the error message here
-    // console.error(errorMessage);
-    return throwError(() => new Error(errorMessage));
+        // Client-side error
+
+        errorMessage = `Client-side error: ${error.error.message}`;
+
+      } else {
+
+        // Server-side error
+
+        const errorResponse = error.error; 
+
+        // VẤN ĐỀ CÓ THỂ Ở ĐÂY
+
+        errorMessage = errorResponse.message; 
+
+      }
+
+      return throwError(() => new Error(errorMessage));
+
   }
+  // private handleError(error: HttpErrorResponse): Observable<never> {
+  //   let errorMessage = '';
+
+  //   if (error.error instanceof ErrorEvent) {
+  //     // Client-side error
+  //     errorMessage = `Client-side error: ${error.error.message}`;
+  //   } else {
+  //     // Server-side error
+  //     const errorResponse = error.error;  // This is where your ErrorResponse will be
+  //     // errorMessage = `Server-side error: ${errorResponse.message} (Status: ${errorResponse.status})\nDetails: ${errorResponse.details}`;
+  //     errorMessage = errorResponse.message;
+  //   }
+
+  //   // Optionally, you can log or display the error message here
+  //   // console.error(errorMessage);
+  //   return throwError(() => new Error(errorMessage));
+  // }
 
   logout() {
     localStorage.removeItem(this.tokenKey);

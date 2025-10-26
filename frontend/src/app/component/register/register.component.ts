@@ -40,20 +40,44 @@ export class RegisterComponent implements OnInit {
   }
 
   getFieldError(field: string): string {
-    if (this.registerForm.get(field)?.hasError('required')) {
+    // Lấy control (trường) cụ thể
+    const control = this.registerForm.get(field); 
+
+    if (control?.hasError('required')) {
       return 'This field is required';
     }
-    if (this.registerForm.get(field)?.hasError('email')) {
+
+    if (control?.hasError('email')) {
       return 'Invalid email format';
     }
-    if (this.registerForm.get(field)?.hasError('minlength')) {
+
+    if (control?.hasError('minlength')) {
       return 'Password must be at least 6 characters long';
     }
-    if (this.registerForm.hasError('mismatch')) {
+
+    // Chỉ hiển thị lỗi này KHI đang kiểm tra trường 'confirmPassword'
+    if (field === 'confirmPassword' && this.registerForm.hasError('mismatch')) {
       return 'Passwords do not match';
     }
+
     return '';
   }
+
+  // getFieldError(field: string): string {
+  //   if (this.registerForm.get(field)?.hasError('required')) {
+  //     return 'This field is required';
+  //   }
+  //   if (this.registerForm.get(field)?.hasError('email')) {
+  //     return 'Invalid email format';
+  //   }
+  //   if (this.registerForm.get(field)?.hasError('minlength')) {
+  //     return 'Password must be at least 6 characters long';
+  //   }
+  //   if (this.registerForm.hasError('mismatch')) {
+  //     return 'Passwords do not match';
+  //   }
+  //   return '';
+  // }
 
   onSubmit(): void {
     this.error = '';
