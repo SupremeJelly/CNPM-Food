@@ -26,6 +26,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
+        final String servletPath = request.getServletPath();
+        // Nếu request là đến API xác thực (auth),
+        // thì bỏ qua filter này và để nó đi tiếp
+        if (servletPath.startsWith("/api/v1/auth")) {
+            filterChain.doFilter(request, response);
+            return; // Rất quan trọng!
+        }
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String username;

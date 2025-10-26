@@ -6,6 +6,21 @@ spring:
     port: 6379
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]': # Áp dụng cho tất cả các đường dẫn
+            allowedOrigins: "http://localhost:4200" # Cho phép Angular
+            allowedMethods:
+              - "GET"
+              - "POST"
+              - "PUT"
+              - "DELETE"
+              - "OPTIONS" # Rất quan trọng
+            allowedHeaders:
+              - "Authorization"
+              - "Content-Type"
+            allowCredentials: true
+
       routes:
         - id: restaurant-service
           uri: http://localhost:8082
@@ -48,11 +63,11 @@ spring:
               args:
                 name: userCircuitBreaker
                 fallbackUri: forward:/fallback/user
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 10
-                redis-rate-limiter.burstCapacity: 50
-                redis-rate-limiter.requestedTokens: 1
+            # - name: RequestRateLimiter
+            #   args:
+            #     redis-rate-limiter.replenishRate: 10
+            #     redis-rate-limiter.burstCapacity: 50
+            #     redis-rate-limiter.requestedTokens: 1
 
         - id: payment-service
           uri: http://localhost:8085

@@ -158,8 +158,14 @@ INSERT INTO users (address, email, is_active, password, profile_image_name, user
 ('123 Street H', 'user8@example.com', 1, 'password8', NULL, 'user8'),
 ('123 Street I', 'user9@example.com', 1, 'password9', NULL, 'user9'),
 ('123 Street J', 'user10@example.com', 1, 'password10', NULL, 'user10');
+('123 Street z', 'admin@example.com', 1, 'admin', NULL, 'admin');
 
 INSERT INTO user_roles (user_id, role)
 SELECT user_id, 'ROLE_USER'
 FROM users
 WHERE username LIKE 'user%';
+
+INSERT INTO user_roles (user_id, role)
+SELECT user_id, 'ROLE_ADMIN'
+FROM users
+WHERE username LIKE 'admin%';
