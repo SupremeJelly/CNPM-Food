@@ -9,5 +9,6 @@ import java.math.BigDecimal;
 @FeignClient(name = "restaurant-service", url = "http://localhost:8082")
 public interface RestaurantClient {
     @GetMapping("/api/v1/menu-items/{menuItemId}")
+    // @GetMapping("/api/v1/menu/{id}/price")
     BigDecimal getPriceByMenuItemId(@PathVariable Integer menuItemId);
 }
