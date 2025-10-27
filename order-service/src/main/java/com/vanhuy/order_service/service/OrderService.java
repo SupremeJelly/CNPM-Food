@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import feign.FeignException;
 
 @Service
 @RequiredArgsConstructor
@@ -82,9 +83,44 @@ public class OrderService {
         return orderResponse;
     }
 
+    // private BigDecimal calculateSubtotal(Integer menuItemId, Integer quantity) {
+    //     BigDecimal price = restaurantClient.getPriceByMenuItemId(menuItemId);
+    //     return price.multiply(BigDecimal.valueOf(quantity));
+    //     //  try {
+    //     //     BigDecimal price = restaurantClient.getPriceByMenuItemId(menuItemId);
+    //     //     return price.multiply(BigDecimal.valueOf(quantity));
+    //     // } catch (Exception e) {
+    //     //     logger.error("Failed to fetch price for menuItemId {}: {}", menuItemId, e.getMessage());
+    //     //     // fallback tạm thời
+    //     //     return BigDecimal.ZERO;
+    //     // }
+    // }
+
     private BigDecimal calculateSubtotal(Integer menuItemId, Integer quantity) {
-        BigDecimal price = restaurantClient.getPriceByMenuItemId(menuItemId);
-        return price.multiply(BigDecimal.valueOf(quantity));
+        try {
+            BigDecimal price = restaurantClient.getPriceByMenuItemId(menuItemId);
+            
+            // Thêm kiểm tra null nếu client có thể trả về null
+            if (price == null) {
+                logger.warn("Price for menuItemId {} is null. Assuming item not found.", menuItemId);
+                // Ném lỗi rõ ràng để dừng việc tạo đơn hàng
+                throw new ResourceNotFoundException("Menu item not found or price is missing: " + menuItemId);
+            }
+            
+            return price.multiply(BigDecimal.valueOf(quantity));
+            
+        } catch (FeignException.NotFound e) {
+            // Bắt lỗi 404 từ restaurant-service
+            logger.error("Menu item not found via restaurantClient: {}", menuItemId, e);
+            // Ném lại lỗi này để hàm createOrder có thể bắt và xử lý (hoặc để Spring Boot trả về 404)
+            throw new ResourceNotFoundException("Menu item not found: " + menuItemId);
+            
+        } catch (Exception e) {
+            // Bắt các lỗi chung khác (ví dụ: restaurant-service bị sập)
+            logger.error("Failed to fetch price for menuItemId {}: {}", menuItemId, e.getMessage());
+            // Ném lỗi chung để dừng giao dịch
+            throw new RuntimeException("Error fetching price for menu item: " + menuItemId, e);
+        }
     }
 
     // get all orders

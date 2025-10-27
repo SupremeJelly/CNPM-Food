@@ -27,6 +27,11 @@ public class MenuItemController {
     private final RestaurantService restaurantService;
     private final FileStorageService imageService;
 
+    // @GetMapping("/{id}/price")
+    // public BigDecimal getPriceByMenuItemId(@PathVariable("id") Integer menuItemId) {
+    //     return menuItemService.getPriceByMenuItemId(menuItemId);
+    // }
+
     @PostMapping("/{restaurantId}")
     public ResponseEntity<OrderItemDTO> createMenuItem(@PathVariable Integer restaurantId, @RequestBody OrderItemDTO menuItemDTO) {
         OrderItemDTO createdMenuItem = menuItemService.createMenuItem(menuItemDTO ,restaurantId);
