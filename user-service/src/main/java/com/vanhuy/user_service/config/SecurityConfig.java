@@ -65,23 +65,4 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // === ĐỊNH NGHĨA QUY TẮC CORS ===
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        
-        // Cho phép Angular (localhost:4200) gọi đến
-        configuration.setAllowedOrigins(List.of("http://localhost:4200")); 
-        
-        // Cho phép các phương thức này (PHẢI CÓ POST)
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")); 
-        
-        // Cho phép các header này (Content-Type là bắt buộc)
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type")); 
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Áp dụng cấu hình này cho tất cả các đường dẫn
-        source.registerCorsConfiguration("/**", configuration); 
-        return source;
-    }
 }
