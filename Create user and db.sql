@@ -166,3 +166,7 @@ INSERT INTO user_roles (user_id, role)
 SELECT user_id, 'ROLE_USER'
 FROM users
 WHERE username LIKE 'user%';
+
+USE payment_db;
+ALTER TABLE payments
+MODIFY COLUMN status ENUM('FAILED', 'PENDING', 'PAID');
