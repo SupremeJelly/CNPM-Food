@@ -29,9 +29,11 @@ jobs:
       # Các file test (như OrderServiceTest.java) sẽ được thực thi.
       - name: Test with Maven
         run: mvn test
+        working-directory: ./order-service
 
       # Bước 4: (Chỉ chạy nếu Bước 3 thành công)
       # Nếu tất cả test 'pass', thì mới tiếp tục build file .jar
       - name: Build with Maven
-        run: mvn package -DskipTests 
+        run: mvn package -DskipTests
+        working-directory: ./order-service
         # -DskipTests vì chúng ta đã test ở bước trên rồi
