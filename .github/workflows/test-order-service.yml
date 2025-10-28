@@ -23,17 +23,28 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+    #   - name: Cache Maven packages
+    #     uses: actions/cache@v3
+    #     with:
+    #       # Lưu lại thư mục repository của Maven
+    #       path: ~/.m2/repository
+    #       # Tạo một key duy nhất cho cache. Khi pom.xml thay đổi, key sẽ thay đổi
+    #       # và cache sẽ được tạo mới.
+    #       key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+    #       restore-keys: |
+    #         ${{ runner.os }}-maven-
+
       # Bước 3: Chạy test!
       # Đây chính là bước bạn đang hỏi.
       # Server CI sẽ chạy lệnh 'mvn test'.
       # Các file test (như OrderServiceTest.java) sẽ được thực thi.
       - name: Test with Maven
-        run: mvn test
+        run: mvn -B test
         working-directory: ./order-service
 
       # Bước 4: (Chỉ chạy nếu Bước 3 thành công)
       # Nếu tất cả test 'pass', thì mới tiếp tục build file .jar
       - name: Build with Maven
-        run: mvn package -DskipTests
+        run: mvn -B package -DskipTests
         working-directory: ./order-service
         # -DskipTests vì chúng ta đã test ở bước trên rồi
