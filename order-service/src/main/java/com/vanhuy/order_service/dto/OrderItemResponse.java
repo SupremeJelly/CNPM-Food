@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-// DTO đại diện cho một mục trong đơn hàng
 
 @Data
 @NoArgsConstructor
