@@ -1,0 +1,37 @@
+name: Test Order Service
+
+# Kích hoạt CI mỗi khi có ai push code lên nhánh 'main'
+on:
+  push:
+    branches: [ "src" ]
+  pull_request:
+    branches: [ "src" ]
+
+jobs:
+  build:
+    # Chạy CI trên một server ảo (runner) của GitHub dùng Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      # Bước 1: Tải code từ repo của bạn về server CI
+      - uses: actions/checkout@v3
+
+      # Bước 2: Cài đặt môi trường (ví dụ: cài Java 17)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # Bước 3: Chạy test!
+      # Đây chính là bước bạn đang hỏi.
+      # Server CI sẽ chạy lệnh 'mvn test'.
+      # Các file test (như OrderServiceTest.java) sẽ được thực thi.
+      - name: Test with Maven
+        run: mvn test
+
+      # Bước 4: (Chỉ chạy nếu Bước 3 thành công)
+      # Nếu tất cả test 'pass', thì mới tiếp tục build file .jar
+      - name: Build with Maven
+        run: mvn package -DskipTests 
+        # -DskipTests vì chúng ta đã test ở bước trên rồi
