@@ -18,11 +18,11 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Integer> {
 
     @Modifying
     @Transactional
-    @Query("update MenuItem m set m.stock = m.stock - :qty where m.itemId = :id and m.stock >= :qty")
+    @Query("update menu_items m set m.stock = m.stock - :qty where m.itemid = :id and m.stock >= :qty")
     int decreaseStock(@Param("id") Integer id, @Param("qty") Integer qty);
 
     @Modifying
     @Transactional
-    @Query("update MenuItem m set m.stock = m.stock + :qty where m.itemId = :id")
+    @Query("update menu_items m set m.stock = m.stock + :qty where m.itemid = :id")
     int increaseStock(@Param("id") Integer id, @Param("qty") Integer qty);
 }
