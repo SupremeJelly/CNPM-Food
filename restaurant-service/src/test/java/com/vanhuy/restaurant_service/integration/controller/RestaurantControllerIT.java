@@ -6,6 +6,7 @@ import com.vanhuy.restaurant_service.model.Restaurant;
 import com.vanhuy.restaurant_service.repository.RestaurantRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -39,8 +40,10 @@ class RestaurantControllerIT {
     @Autowired
     private RestaurantRepository restaurantRepository;
 
+    @Value("${file.upload-dir}")
+    private String uploadDir;
+
     private static final String BASE_URL = "/api/v1/restaurants";
-    private static final String UPLOAD_DIR = "src/main/resources/uploads";
 
     @BeforeEach
     void setUp() {
@@ -52,9 +55,9 @@ class RestaurantControllerIT {
     void tearDown() {
         // Clean up uploaded files
         try {
-            File uploadDir = new File(UPLOAD_DIR);
-            if (uploadDir.exists()) {
-                File[] files = uploadDir.listFiles();
+            File uploadDirectory = new File(uploadDir);
+            if (uploadDirectory.exists()) {
+                File[] files = uploadDirectory.listFiles();
                 if (files != null) {
                     for (File file : files) {
                         if (file.getName().startsWith("test-")) {
@@ -401,7 +404,7 @@ class RestaurantControllerIT {
     @Transactional
     void testGetImage_Success() throws Exception {
         // Given - Create a test image file
-        Path uploadPath = Paths.get(UPLOAD_DIR);
+        Path uploadPath = Paths.get(uploadDir);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
