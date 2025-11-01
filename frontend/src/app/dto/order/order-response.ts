@@ -3,13 +3,14 @@ export interface Order {
     userId: number;
     items: OrderItem[];
     status: OrderStatus;
+    paymentStatus: string;  // PENDING, PAID, FAILED
     totalAmount: number;
+    orderDate: Date;  // Thêm field này
     createdAt: Date;
     recipientName: string;
     contactEmail: string;
     shippingAddress: string;
     contactPhone: string;
-
   }
   
   export interface OrderItem {

@@ -27,18 +27,13 @@ const routes: Routes = [
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
   { path: 'unauthorized', component:  UnauthorizedComponent},
-  // { path: 'dashboard', 
-  //   component: DashboardComponent, 
-  //   canActivate: [AuthGuard], 
-  //   data: { roles: ['ROLE_ADMIN'] },
-  //   loadChildren: () => import('./component/admin/dashboard-routing/dashboard-routing-routing.module').then(m => m.DashboardRoutingRoutingModule)},
-  { path: 'payment', component:  PaymentComponent , canActivate: [AuthGuard]},
-  {
-    path: 'dashboard',
-    component: DashboardComponent,
-    canActivate: [AuthGuard],
-    data: { roles: ['ROLE_ADMIN'] }
+  { 
+    path: 'dashboard', 
+    canActivate: [AuthGuard], 
+    data: { roles: ['ROLE_ADMIN'] },
+    loadChildren: () => import('./component/admin/dashboard-routing/dashboard-routing-routing.module').then(m => m.DashboardRoutingRoutingModule)
   },
+  { path: 'payment', component:  PaymentComponent , canActivate: [AuthGuard]},
 
 ];
 

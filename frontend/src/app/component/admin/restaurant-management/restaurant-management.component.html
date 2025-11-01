@@ -1,1 +1,57 @@
-<p>restaurant-management works!</p>
+<div class="container mx-auto">
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+      <i class="fas fa-store mr-2"></i> Restaurant Management
+    </h1>
+    <p class="text-gray-600">Manage all restaurants and their menu items</p>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="flex justify-center items-center py-12">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+    <i class="fas fa-exclamation-circle mr-2"></i>{{ errorMessage }}
+  </div>
+
+  <!-- Restaurants Grid -->
+  <div *ngIf="!isLoading && restaurants.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div *ngFor="let restaurant of restaurants" 
+         class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200">
+      <img [src]="restaurant.imageUrl || 'assets/restaurant-placeholder.jpg'" 
+           [alt]="restaurant.name"
+           class="w-full h-48 object-cover">
+      <div class="p-4">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">{{ restaurant.name }}</h3>
+        <p class="text-gray-600 text-sm mb-2">{{ restaurant.address }}</p>
+        <p class="text-gray-700 mb-4">{{ restaurant.description }}</p>
+        
+        <div class="flex items-center justify-between text-sm text-gray-500 mb-4">
+          <span><i class="fas fa-phone mr-1"></i> {{ restaurant.phone }}</span>
+          <span><i class="fas fa-utensils mr-1"></i> {{ restaurant.cuisine }}</span>
+        </div>
+
+        <div class="flex gap-2">
+          <button class="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+            <i class="fas fa-eye mr-1"></i> View Details
+          </button>
+          <button class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 transition-colors">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && restaurants.length === 0" class="text-center py-12">
+    <i class="fas fa-store text-gray-400 text-6xl mb-4"></i>
+    <p class="text-gray-600 text-xl">No restaurants found</p>
+  </div>
+</div>

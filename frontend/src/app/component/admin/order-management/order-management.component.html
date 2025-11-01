@@ -1,1 +1,77 @@
-<p>order-management works!</p>
+<div class="container mx-auto">
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+      <i class="fas fa-shopping-cart mr-2"></i> Order Management
+    </h1>
+    <p class="text-gray-600">Track and manage all customer orders</p>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="flex justify-center items-center py-12">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+    <i class="fas fa-exclamation-circle mr-2"></i>{{ errorMessage }}
+  </div>
+
+  <!-- Orders Table -->
+  <div *ngIf="!isLoading && orders.length > 0" class="bg-white rounded-lg shadow-md overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-800 text-white">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Order ID</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">User ID</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Total Amount</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Payment</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <tr *ngFor="let order of orders" class="hover:bg-gray-50">
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{{ order.orderId }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">User {{ order.userId }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+            {{ order.orderDate | date:'short' }}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+            ${{ order.totalAmount | number:'1.2-2' }}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">
+            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                  [ngClass]="getStatusColor(order.status)">
+              {{ order.status }}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">
+            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                  [ngClass]="getPaymentStatusColor(order.paymentStatus)">
+              {{ order.paymentStatus }}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+            <button class="text-blue-600 hover:text-blue-900 mr-3" title="View Details">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="text-yellow-600 hover:text-yellow-900 mr-3" title="Update Status">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="text-red-600 hover:text-red-900" title="Cancel">
+              <i class="fas fa-times-circle"></i>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && orders.length === 0" class="text-center py-12">
+    <i class="fas fa-shopping-cart text-gray-400 text-6xl mb-4"></i>
+    <p class="text-gray-600 text-xl">No orders found</p>
+  </div>
+</div>

@@ -76,6 +76,23 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
         logger.info("Order created: " + savedOrder);
 
+        // Decrease stock after order is created
+        try {
+            List<RestaurantClient.StockDecrementRequest.Item> stockItems = orderItems.stream()
+                    .map(item -> new RestaurantClient.StockDecrementRequest.Item(
+                            item.getMenuItemId(), 
+                            item.getQuantity()
+                    ))
+                    .collect(Collectors.toList());
+            
+            restaurantClient.decreaseStock(new RestaurantClient.StockDecrementRequest(stockItems));
+            logger.info("Stock decreased successfully for order: " + savedOrder.getOrderId());
+        } catch (Exception e) {
+            logger.error("Failed to decrease stock for order: " + savedOrder.getOrderId(), e);
+            // You may want to handle this - either rollback order or mark it for manual review
+            // For now, we'll log and continue
+        }
+
         // send order notification
         OrderResponse orderResponse = orderToOrderResponse(savedOrder);
         sendOrderNotification(orderResponse);
