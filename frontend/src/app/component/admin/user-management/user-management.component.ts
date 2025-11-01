@@ -36,4 +36,23 @@ export class UserManagementComponent implements OnInit {
       }
     });
   }
+
+  viewUserDetails(userId: number): void {
+    console.log('View user details:', userId);
+    // TODO: Navigate to user details page
+  }
+
+  editUser(userId: number): void {
+    console.log('Edit user:', userId);
+    // TODO: Open edit modal or navigate to edit page
+    alert('Edit user functionality will be implemented soon');
+  }
+
+  deleteUser(userId: number): void {
+    if (confirm('Are you sure you want to delete this user?')) {
+      console.log('Delete user:', userId);
+      // TODO: Call delete API
+      alert('Delete user functionality will be implemented soon');
+    }
+  }
 }

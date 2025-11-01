@@ -56,4 +56,23 @@ export class OrderManagementComponent implements OnInit {
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   }
+
+  viewOrderDetails(orderId: number): void {
+    console.log('View order details:', orderId);
+    // TODO: Navigate to order details page
+  }
+
+  updateOrderStatus(orderId: number): void {
+    console.log('Update order status:', orderId);
+    // TODO: Open status update modal
+    alert('Update order status functionality will be implemented soon');
+  }
+
+  cancelOrder(orderId: number): void {
+    if (confirm('Are you sure you want to cancel this order?')) {
+      console.log('Cancel order:', orderId);
+      // TODO: Call cancel order API
+      alert('Cancel order functionality will be implemented soon');
+    }
+  }
 }

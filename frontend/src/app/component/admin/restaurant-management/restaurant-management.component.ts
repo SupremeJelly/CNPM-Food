@@ -12,6 +12,7 @@ export class RestaurantManagementComponent implements OnInit {
   restaurants: Restaurant[] = [];
   isLoading: boolean = true;
   errorMessage: string | null = null;
+  defaultImage = 'https://via.placeholder.com/400x300/e2e8f0/475569?text=Restaurant';
 
   constructor(private restaurantService: RestaurantService) {}
 
@@ -34,5 +35,24 @@ export class RestaurantManagementComponent implements OnInit {
         console.error('Error loading restaurants:', error);
       }
     });
+  }
+
+  viewDetails(restaurantId: number): void {
+    console.log('View restaurant details:', restaurantId);
+    // TODO: Navigate to restaurant details page
+  }
+
+  editRestaurant(restaurantId: number): void {
+    console.log('Edit restaurant:', restaurantId);
+    // TODO: Open edit modal or navigate to edit page
+    alert('Edit functionality will be implemented soon');
+  }
+
+  deleteRestaurant(restaurantId: number): void {
+    if (confirm('Are you sure you want to delete this restaurant?')) {
+      console.log('Delete restaurant:', restaurantId);
+      // TODO: Call delete API
+      alert('Delete functionality will be implemented soon');
+    }
   }
 }
