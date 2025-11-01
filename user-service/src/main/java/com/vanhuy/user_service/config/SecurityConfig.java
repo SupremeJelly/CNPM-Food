@@ -45,6 +45,9 @@ public class SecurityConfig {
                     .requestMatchers("/swagger-ui/**").permitAll()
                     .requestMatchers("/api-docs/**").permitAll()
                     
+                    // Cho phép actuator endpoints cho monitoring
+                    .requestMatchers("/actuator/**").permitAll()
+                    
                     // Tất cả các request còn lại phải xác thực
                     .anyRequest().authenticated() 
             )
