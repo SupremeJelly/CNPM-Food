@@ -157,8 +157,10 @@ INSERT INTO users (address, email, is_active, password, profile_image_name, user
 ('123 Street G', 'user7@example.com', 1, 'password7', NULL, 'user7'),
 ('123 Street H', 'user8@example.com', 1, 'password8', NULL, 'user8'),
 ('123 Street I', 'user9@example.com', 1, 'password9', NULL, 'user9'),
-('123 Street J', 'user10@example.com', 1, 'password10', NULL, 'user10');
-('123 Street z', 'admin@example.com', 1, 'admin', NULL, 'admin');
+('123 Street J', 'user10@example.com', 1, 'password10', NULL, 'user10'),
+('123 Street z', 'admin@example.com', 1, 'admin', NULL, 'admin'),
+-- Tài khoản admin mới: username=khoi, password=123456 (đã mã hóa BCrypt)
+('789 Admin Street', 'khoi@admin.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'khoi');
 
 INSERT INTO user_roles (user_id, role)
 SELECT user_id, 'ROLE_USER'
@@ -168,4 +170,4 @@ WHERE username LIKE 'user%';
 INSERT INTO user_roles (user_id, role)
 SELECT user_id, 'ROLE_ADMIN'
 FROM users
-WHERE username LIKE 'admin%';
+WHERE username IN ('admin', 'khoi');

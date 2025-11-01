@@ -3,13 +3,11 @@ package com.vanhuy.payment_service.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.vanhuy.payment_service.client.OrderClient;
-import com.vanhuy.payment_service.client.RestaurantClient;
 import com.vanhuy.payment_service.model.Payment;
 import com.vanhuy.payment_service.model.Payment.PaymentStatus;
 import com.vanhuy.payment_service.repository.PaymentRepository;
@@ -22,9 +20,6 @@ public class PaymentService {
 
     @Autowired
     private OrderClient orderClient;
-
-    @Autowired
-    private RestaurantClient restaurantClient;
 
     public Payment createPayment(Payment p) {
         p.setStatus(PaymentStatus.PAID);
@@ -72,23 +67,13 @@ public class PaymentService {
             try {
                 // Cập nhật trạng thái thanh toán
                 orderClient.updatePaymentStatus(orderId, PaymentStatus.PAID.name());
+                System.out.println("Payment status updated successfully!");
 
-                // --- Giảm stock tự động ---
-                List<OrderClient.OrderItemDTO> orderItems = orderClient.getOrderItems(orderId);
-
-                // Kiểm tra xem orderItems có dữ liệu không
-                System.out.println("Order items received: " + orderItems);
-
-                // Chuyển sang danh sách stock
-                List<RestaurantClient.StockDecrementRequest.Item> items = orderItems.stream()
-                    .map(i -> new RestaurantClient.StockDecrementRequest.Item(i.getMenuItemId(), i.getQuantity()))
-                    .collect(Collectors.toList());
-
-                restaurantClient.decreaseStock(new RestaurantClient.StockDecrementRequest(items));
-                System.out.println("Stock decreased successfully!");
-                // --------------------------------
+                // NOTE: Stock is already decreased when order is created in order-service
+                // No need to decrease stock again here
+                
             } catch (Exception e) {
-                System.err.println("Error while processing stock/payment update:");
+                System.err.println("Error while processing payment status update:");
                 e.printStackTrace(); // in chi tiết lỗi ra console
             }
 

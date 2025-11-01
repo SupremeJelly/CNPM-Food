@@ -10,7 +10,7 @@ const routes: Routes = [
     path: '',                      // /dashboard
     component: DashboardComponent,  // layout + sidebar + <router-outlet>
     children: [
-      { path: '', redirectTo: '', pathMatch: 'full' },  // redirect /dashboard -> /dashboard/users
+      { path: '', redirectTo: 'users', pathMatch: 'full' },  // redirect /dashboard -> /dashboard/users
       { path: 'users', component: UserManagementComponent },
       { path: 'restaurants', component: RestaurantManagementComponent },
       { path: 'orders', component: OrderManagementComponent },

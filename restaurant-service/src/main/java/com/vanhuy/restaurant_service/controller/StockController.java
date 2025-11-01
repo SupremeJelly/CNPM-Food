@@ -12,9 +12,15 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/stocks")
+@RequestMapping("/api/v1/stock")
 public class StockController {
     private final StockService stockService;
+
+    @PutMapping("/decrement")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void decrement(@RequestBody StockDecrementRequest request) {
+        stockService.decreaseStock(request.getItems());
+    }
 
     @PostMapping("/decrease")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -26,5 +32,24 @@ public class StockController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void increase(@RequestBody List<OrderItemDTO> items) {
         stockService.increaseStock(items);
+    }
+    
+    // DTO class for decrement request
+    public static class StockDecrementRequest {
+        private List<OrderItemDTO> items;
+        
+        public StockDecrementRequest() {}
+        
+        public StockDecrementRequest(List<OrderItemDTO> items) {
+            this.items = items;
+        }
+        
+        public List<OrderItemDTO> getItems() {
+            return items;
+        }
+        
+        public void setItems(List<OrderItemDTO> items) {
+            this.items = items;
+        }
     }
 }
