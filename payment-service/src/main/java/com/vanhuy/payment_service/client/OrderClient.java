@@ -20,7 +20,7 @@ import java.util.List;
 //     );
 // }
 
-@FeignClient(name = "orderClient", url = "http://localhost:8083")
+@FeignClient(name = "orderClient", url = "${ORDER_SERVICE_URL:http://localhost:8083}")
 public interface OrderClient {
 
     @PutMapping("/api/v1/orders/{orderId}/payment-status")

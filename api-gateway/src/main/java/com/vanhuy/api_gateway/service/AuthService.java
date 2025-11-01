@@ -14,13 +14,17 @@ import org.springframework.web.client.RestTemplate;
 @Service
 public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
-    private static final String AUTH_SERVICE_URL = "http://localhost:8081/api/v1/auth/validateToken";
+    private final String authServiceUrl;
 
     @Autowired
     private RestTemplate restTemplate;
 
+    public AuthService(@org.springframework.beans.factory.annotation.Value("${USER_SERVICE_URL:http://localhost:8081}") String userServiceUrl) {
+        this.authServiceUrl = userServiceUrl + "/api/v1/auth/validateToken";
+    }
+
     public ValidTokenResponse validateToken(String token) {
-        String url = AUTH_SERVICE_URL + "?token=" + token;
+        String url = authServiceUrl + "?token=" + token;
         logger.info("Validating token at: {}", url);
 
         try {

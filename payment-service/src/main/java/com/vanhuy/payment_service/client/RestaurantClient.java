@@ -7,10 +7,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import java.util.List;
 
 // Feign Client gọi sang restaurant-service
-@FeignClient(name = "restaurant-service", url = "http://localhost:8082/api/v1/stock")
+@FeignClient(name = "restaurant-service", url = "${RESTAURANT_SERVICE_URL:http://localhost:8082}")
 public interface RestaurantClient {
 
-    @PutMapping("/decrement")
+    @PutMapping("/api/v1/stock/decrement")
     void decreaseStock(@RequestBody StockDecrementRequest request);
 
     class StockDecrementRequest {

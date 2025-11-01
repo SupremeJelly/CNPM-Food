@@ -30,6 +30,9 @@ services:
         SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/payment_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
         SPRING_DATASOURCE_USERNAME: "paymentservice"
         SPRING_DATASOURCE_PASSWORD: "pay"
+        # Service URLs for Feign Clients
+        ORDER_SERVICE_URL: "http://order-service:8083"
+        RESTAURANT_SERVICE_URL: "http://restaurant-service:8082"
       ports:
         - "8085:8085"
       depends_on:
@@ -46,6 +49,10 @@ services:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/order_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
       SPRING_DATASOURCE_USERNAME: "orderservice"
       SPRING_DATASOURCE_PASSWORD: "order"
+      # Service URLs for Feign Clients
+      USER_SERVICE_URL: "http://user-service:8081"
+      RESTAURANT_SERVICE_URL: "http://restaurant-service:8082"
+      NOTIFICATION_SERVICE_URL: "http://notification-service:8084/api/v1/notifications"
     ports:
       - "8083:8083"
     depends_on:
@@ -102,6 +109,12 @@ services:
       context: ./api-gateway
       dockerfile: Dockerfile
     container_name: api-gateway
+    environment:
+      # Service URLs - sử dụng container names
+      RESTAURANT_SERVICE_URL: "http://restaurant-service:8082"
+      ORDER_SERVICE_URL: "http://order-service:8083"
+      USER_SERVICE_URL: "http://user-service:8081"
+      PAYMENT_SERVICE_URL: "http://payment-service:8085"
     ports:
       - "9000:9000"
     depends_on:
