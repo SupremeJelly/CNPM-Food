@@ -78,12 +78,24 @@ services:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/user_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
       SPRING_DATASOURCE_USERNAME: "userservice"
       SPRING_DATASOURCE_PASSWORD: "user"
+      # JWT Configuration - QUAN TRỌNG!
+      JWT_SECRET_KEY: "5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437"
+      JWT_EXPIRATION: "86400000"
+      # File upload
+      FILE_UPLOAD_DIR: "/app/uploads"
+      APP_BASE_URL: "http://user-service:8081"
+      # Frontend URL
+      APP_FRONTEND_URL: "http://localhost:4200"
+      # Notification service URL
+      NOTIFICATION_SERVICE_URL: "http://notification-service:8084/api/v1/notifications"
     ports:
       - "8081:8081"
     depends_on:
       - mysql-db
     networks:
       - cnpm-net
+    volumes:
+      - user-uploads:/app/uploads
 
   api-gateway:
     build:
@@ -118,6 +130,7 @@ services:
 
 volumes:
   mysql-data:
+  user-uploads:
 
 networks:
   cnpm-net:
