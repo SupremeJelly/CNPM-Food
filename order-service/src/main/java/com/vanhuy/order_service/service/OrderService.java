@@ -113,32 +113,34 @@ public class OrderService {
     //     // }
     // }
 
+    // Trong file OrderService.java
     private BigDecimal calculateSubtotal(Integer menuItemId, Integer quantity) {
+        BigDecimal price; // 1. Khai báo price ở ngoài
+
         try {
-            BigDecimal price = restaurantClient.getPriceByMenuItemId(menuItemId);
-            
-            // Thêm kiểm tra null nếu client có thể trả về null
-            if (price == null) {
-                logger.warn("Price for menuItemId {} is null. Assuming item not found.", menuItemId);
-                // Ném lỗi rõ ràng để dừng việc tạo đơn hàng
-                throw new ResourceNotFoundException("Menu item not found or price is missing: " + menuItemId);
-            }
-            
-            return price.multiply(BigDecimal.valueOf(quantity));
-            
+            // 2. Khối try-catch này CHỈ DÙNG để bắt lỗi từ client (như 404, 500)
+            price = restaurantClient.getPriceByMenuItemId(menuItemId);
+
         } catch (FeignException.NotFound e) {
-            // Bắt lỗi 404 từ restaurant-service
             logger.error("Menu item not found via restaurantClient: {}", menuItemId, e);
-            // Ném lại lỗi này để hàm createOrder có thể bắt và xử lý (hoặc để Spring Boot trả về 404)
-            throw new ResourceNotFoundException("Menu item not found: " + menuItemId);
-            
+            throw new ResourceNotFoundException("Menu item not found: " + menuItemId); // Ném lỗi 404
+
         } catch (Exception e) {
-            // Bắt các lỗi chung khác (ví dụ: restaurant-service bị sập)
+            // Bắt tất cả các lỗi khác từ Feign (như 500, timeout)
             logger.error("Failed to fetch price for menuItemId {}: {}", menuItemId, e.getMessage());
-            // Ném lỗi chung để dừng giao dịch
             throw new RuntimeException("Error fetching price for menu item: " + menuItemId, e);
         }
+
+        // 3. Logic nghiệp vụ: Xử lý sau khi đã gọi client thành công
+        if (price == null) {
+            logger.warn("Price for menuItemId {} is null. Assuming item not found.", menuItemId);
+            throw new ResourceNotFoundException("Menu item not found or price is missing: " + menuItemId);
+        }
+
+        // 4. Nếu price không null, tính toán
+        return price.multiply(BigDecimal.valueOf(quantity));
     }
+
 
     // get all orders
     public Page<OrderResponse> getAllOrders(Pageable pageable) {
