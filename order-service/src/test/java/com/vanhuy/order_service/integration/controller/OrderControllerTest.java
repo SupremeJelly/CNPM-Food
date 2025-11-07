@@ -1,5 +1,6 @@
-package com.vanhuy.order_service.controller;
+package com.vanhuy.order_service.integration.controller;
 
+import com.vanhuy.order_service.controller.OrderController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vanhuy.order_service.dto.OrderItemDTO;
 import com.vanhuy.order_service.dto.OrderRequest;

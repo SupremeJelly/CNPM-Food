@@ -1,5 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { MenuItem } from '../../dto/MenuItem';
+import { MenuItemDTO } from '../../dto/restaurant/MenuItemDTO';
 import { RestaurantService } from '../../service/restaurant.service';
 import { ActivatedRoute } from '@angular/router';
 import { CartItem } from '../../dto/CartItem';
@@ -12,7 +13,7 @@ import { CartService } from '../../service/cart.service';
 })
 export class RestaurantDetailComponent implements OnInit {
 
-  menuItems: MenuItem[] = [];
+  menuItems: MenuItemDTO[] = [];
   restaurantId!: number;
 
   constructor(
@@ -29,9 +30,8 @@ export class RestaurantDetailComponent implements OnInit {
 
   loadMenuItems(restaurantId: number): void {
     this.restaurantService.getMenuItemsByRestaurantId(restaurantId)
-    .subscribe(response => {
+    .subscribe((response: MenuItemDTO[]) => {
       this.menuItems = response;
-      
     });
   }
 
@@ -49,11 +49,22 @@ export class RestaurantDetailComponent implements OnInit {
   //   localStorage.setItem('cart', JSON.stringify(cartItems));
   // }
 
-  addToCart(menuItem: MenuItem) {
-    const cartItem : CartItem = {
+  addToCart(menuItemDto: MenuItemDTO) {
+    // Map MenuItemDTO -> MenuItem shape expected by CartItem
+    const menuItem: MenuItem = {
+      menuItemId: menuItemDto.menuItemId,
+      name: menuItemDto.name,
+      price: menuItemDto.price,
+      restaurantId: menuItemDto.restaurantId,
+      stock: menuItemDto.stock ?? 0,
+      imageUrl: menuItemDto.imageUrl
+    };
+
+    const cartItem: CartItem = {
       menuItem: menuItem,
       quantity: 1
-    }
+    };
+
     this.cartService.addToCart(cartItem);
   }
 }

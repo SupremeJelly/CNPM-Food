@@ -4,6 +4,7 @@ import { DashboardComponent } from '../dashboard/dashboard.component';
 import { UserManagementComponent } from '../../admin/user-management/user-management.component';
 import { RestaurantManagementComponent } from '../../admin/restaurant-management/restaurant-management.component';
 import { OrderManagementComponent } from '../../admin/order-management/order-management.component';
+import { MenuManagementComponent } from '../../admin/menu-management/menu-management.component';
 
 const routes: Routes = [
   {
@@ -13,6 +14,7 @@ const routes: Routes = [
       { path: '', redirectTo: 'users', pathMatch: 'full' },  // redirect /dashboard -> /dashboard/users
       { path: 'users', component: UserManagementComponent },
       { path: 'restaurants', component: RestaurantManagementComponent },
+  { path: 'menus', component: MenuManagementComponent },
       { path: 'orders', component: OrderManagementComponent },
     ]
   }
