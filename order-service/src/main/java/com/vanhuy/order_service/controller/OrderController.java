@@ -56,4 +56,9 @@ public class OrderController {
         return orderService.getOrderItems(orderId); // trả về danh sách menuItemId + quantity
     }
 
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<Void> cancelOrder(@PathVariable Integer orderId) {
+        orderService.cancelOrder(orderId);
+        return ResponseEntity.ok().build();
+    }
 }
