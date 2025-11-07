@@ -116,8 +116,18 @@ export class UserService {
     return throwError(() => new Error(errorMessage));
   }
 
+  // Get all users with optional parameters for inactive users
+  getUsers(includeInactive: boolean = false, page: number, size: number): Observable<Page<UserDTO>> {
+    const params = new HttpParams()
+      .set('includeInactive', includeInactive.toString())
+      .set('page', page.toString())
+      .set('size', size.toString());
+    return this.http.get<Page<UserDTO>>(this.userUrl, { params });
+  }
+
+  // Alias for getUsers with includeInactive=false for backward compatibility
   getAllUsers(page: number, size: number): Observable<Page<UserDTO>> {
-    return this.http.get<Page<UserDTO>>(`${this.userUrl}?page=${page}&size=${size}`);
+    return this.getUsers(false, page, size);
   }
 
   getUserById(userId: number): Observable<UserDTO> {
@@ -138,13 +148,5 @@ export class UserService {
 
   reactivateUser(id: number): Observable<UserDTO> {
     return this.http.post<UserDTO>(`${this.userUrl}/${id}/reactivate`, {});
-  }
-
-  getUsers(includeInactive: boolean = false, page: number , size :number): Observable<Page<UserDTO>> {
-    const params = new HttpParams()
-    .set('includeInactive', includeInactive.toString())
-      .set('page', page.toString())
-      .set('size', size.toString());
-    return this.http.get<Page<UserDTO>>(this.userUrl, { params });
   }
 }

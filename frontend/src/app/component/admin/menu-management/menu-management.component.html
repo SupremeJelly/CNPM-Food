@@ -1,0 +1,68 @@
+<div class="container mx-auto px-4 py-8">
+  <h2 class="text-2xl font-bold mb-6">Quản lý thực đơn</h2>
+
+  <!-- Loading and Error states -->
+  <div *ngIf="isLoading" class="text-center py-4">
+    <p>Đang tải...</p>
+  </div>
+  <div *ngIf="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Restaurant Selector -->
+  <div class="mb-6">
+    <label class="block text-gray-700 text-sm font-bold mb-2">
+      Chọn nhà hàng
+    </label>
+    <select #sel (change)="onRestaurantSelect(sel.value)"
+            class="block w-full p-2 border rounded">
+      <option value="">-- Chọn nhà hàng --</option>
+      <option *ngFor="let restaurant of restaurants; let i = index" [value]="i">
+        {{ restaurant.name }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Menu Items List -->
+  <div *ngIf="selectedRestaurant">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div *ngFor="let item of menuItems" class="bg-white rounded-lg shadow-md p-6">
+        <!-- Menu Item Image -->
+        <div class="mb-4 relative">
+          <img [src]="item.imageUrl || 'assets/images/default-food.jpg'" 
+               [alt]="item.name"
+               class="w-full h-48 object-cover rounded">
+          <!-- Availability display removed per product decision -->
+        </div>
+
+        <!-- Menu Item Info -->
+        <div class="mb-4">
+          <h3 class="text-xl font-semibold mb-2">{{ item.name }}</h3>
+          <p class="text-gray-600 mb-2">{{ item.description }}</p>
+          <p class="text-lg font-semibold text-blue-600">{{ item.price | currency:'VND':'symbol':'1.0-0' }}</p>
+          <p class="text-sm text-gray-500">Danh mục: {{ item.category }}</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex space-x-2">
+          <button (click)="editMenuItem(item)"
+                  class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+            Chỉnh sửa
+          </button>
+          <!-- Availability toggle removed from UI -->
+        </div>
+
+        <!-- File Upload -->
+        <div class="mt-4" *ngIf="selectedMenuItem?.menuItemId === item.menuItemId">
+          <input type="file" (change)="onFileSelected($event)" accept="image/*"
+                 class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

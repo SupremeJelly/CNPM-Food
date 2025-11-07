@@ -19,6 +19,7 @@ import { UnauthorizedComponent } from './component/unauthorized/unauthorized.com
 import { DashboardComponent } from './component/admin/dashboard/dashboard.component';
 import { UserManagementComponent } from './component/admin/user-management/user-management.component';
 import { RestaurantManagementComponent } from './component/admin/restaurant-management/restaurant-management.component';
+import { MenuManagementComponent } from './component/admin/menu-management/menu-management.component';
 import { OrderManagementComponent } from './component/admin/order-management/order-management.component';
 import { UserFormDialogComponent } from './component/admin/user-form-dialog/user-form-dialog.component';
 import { PaymentComponent } from './component/payment/payment.component';
@@ -41,6 +42,7 @@ import { PaymentComponent } from './component/payment/payment.component';
     DashboardComponent,
     UserManagementComponent,
     RestaurantManagementComponent,
+  MenuManagementComponent,
     OrderManagementComponent,
     UserFormDialogComponent
   ],
