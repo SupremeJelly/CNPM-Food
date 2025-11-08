@@ -1,14 +1,16 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline - Docker Desktop K8s
 
 on:
   push:
     branches:
       - main
       - src
+  workflow_dispatch:  # Cho phép trigger manual
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted  # Chạy trên máy local với Docker Desktop
+    # runs-on: ubuntu-latest  # Uncomment nếu deploy lên cloud
 
     steps:
       - name: Checkout code
@@ -65,18 +67,57 @@ jobs:
           push: true
           tags: onlykohi/cnpm-frontend:latest
 
-      # 3️⃣ Kết nối tới Kubernetes cluster (ví dụ: Render hoặc AKS)
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: 'latest'
-
-      # 4️⃣ Cấu hình kubeconfig từ secret (Render hoặc AKS)
-      - name: Configure kubeconfig
-        run: echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
-
-      # 5️⃣ Deploy các YAML file
-      - name: Deploy to Kubernetes
+      # 3️⃣ Verify Docker Desktop Kubernetes
+      - name: Check Kubernetes context
         run: |
-          kubectl apply -f k8s/
-          kubectl rollout status deployment/api-gateway -n cnpm-food
+          kubectl config current-context
+          kubectl cluster-info
+          kubectl get nodes
+
+      # 4️⃣ Deploy to Docker Desktop Kubernetes
+      - name: Deploy MySQL
+        run: |
+          kubectl apply -f k8s/services/mysql-deployment.yaml
+          echo "Waiting for MySQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app=mysql -n cnpm-food --timeout=300s
+
+      - name: Deploy Microservices
+        run: |
+          kubectl apply -f k8s/services/user-service-deployment.yaml
+          kubectl apply -f k8s/services/restaurant-service-deployment.yaml
+          kubectl apply -f k8s/services/order-service-deployment.yaml
+          kubectl apply -f k8s/services/payment-service-deployment.yaml
+          kubectl apply -f k8s/services/api-gateway-deployment.yaml
+          kubectl apply -f k8s/services/frontend-deployment.yaml
+
+      - name: Wait for deployments to be ready
+        run: |
+          echo "Waiting for services to be ready (this may take 2-3 minutes)..."
+          kubectl rollout status deployment/user-service -n cnpm-food --timeout=5m
+          kubectl rollout status deployment/restaurant-service -n cnpm-food --timeout=5m
+          kubectl rollout status deployment/order-service -n cnpm-food --timeout=5m
+          kubectl rollout status deployment/payment-service -n cnpm-food --timeout=5m
+          kubectl rollout status deployment/api-gateway -n cnpm-food --timeout=5m
+          kubectl rollout status deployment/frontend -n cnpm-food --timeout=5m
+
+      # 5️⃣ Deploy Monitoring (Optional)
+      - name: Deploy Monitoring Stack
+        run: |
+          kubectl apply -f k8s/monitoring/prometheus-deployment.yaml
+          kubectl apply -f k8s/monitoring/grafana-deployment.yaml
+        continue-on-error: true  # Không fail nếu monitoring có vấn đề
+
+      # 6️⃣ Verify deployment
+      - name: Verify Deployment
+        run: |
+          echo "=== Pods Status ==="
+          kubectl get pods -n cnpm-food
+          echo ""
+          echo "=== Services ==="
+          kubectl get svc -n cnpm-food
+          echo ""
+          echo "=== Deployment Summary ==="
+          kubectl get deployments -n cnpm-food
+          echo ""
+          echo "=== Monitoring Pods ==="
+          kubectl get pods -n monitoring
