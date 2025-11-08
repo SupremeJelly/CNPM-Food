@@ -1,5 +1,6 @@
 package com.vanhuy.payment_service.integration.client;
 
+import com.vanhuy.payment_service.client.OrderClient;
 import com.vanhuy.payment_service.client.OrderClient.OrderItemDTO;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

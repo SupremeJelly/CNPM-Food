@@ -37,19 +37,18 @@ export class OrderConfirmationComponent {
       this.router.navigate(['/payment']);
   }
 
-  // goToPayment(order: Order) {
-  //   this.router.navigate(['/payment']
-  //     , {
-  //     queryParams: {
-  //       orderId: order.orderId,
-  //       total: order.totalAmount,
-  //       status: order.status
-  //     }
-  //   });
-  // }
-
-  // goToPayment() {
-  //   this.router.navigate(['/payment']);
-  // }
-
+  cancelOrder(order: Order): void {
+    if (confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) {
+      this.orderService.cancelOrder(order.orderId).subscribe({
+        next: () => {
+          alert('Đã hủy đơn hàng thành công!');
+          this.router.navigate(['/']);
+        },
+        error: (error) => {
+          console.error('Error canceling order:', error);
+          alert('Có lỗi xảy ra khi hủy đơn hàng. Vui lòng thử lại!');
+        }
+      });
+    }
+  }
 }
