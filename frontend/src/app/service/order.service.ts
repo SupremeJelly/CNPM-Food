@@ -31,4 +31,8 @@ export class OrderService {
     .set('size', size.toString());
   return this.http.get<Page<Order>>(this.orderUrl, { params });
 }
+
+  cancelOrder(orderId: number): Observable<void> {
+    return this.http.delete<void>(`${this.orderUrl}/${orderId}`);
+  }
 }

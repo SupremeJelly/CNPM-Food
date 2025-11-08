@@ -39,6 +39,18 @@ public class OrderService {
     private final RestaurantClient restaurantClient;
     private final NotificationClient notificationClient;
 
+    public void cancelOrder(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        
+        // Only allow cancellation of PENDING orders
+        if (order.getStatus() == Order.OrderStatus.PENDING) {
+            orderRepository.delete(order);
+        } else {
+            throw new IllegalStateException("Only pending orders can be cancelled");
+        }
+    }
+
     // create order
     public OrderResponse createOrder(OrderRequest orderRequest) {
         Order order = new Order();
