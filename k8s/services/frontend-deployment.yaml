@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: cnpm-food
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: onlykohi/cnpm-frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 4200
+          name: http
+        env:
+        - name: API_GATEWAY_URL
+          value: "http://api-gateway:9000"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: cnpm-food
+  labels:
+    app: frontend
+spec:
+  type: LoadBalancer  # Change to LoadBalancer for external access
+  ports:
+  - port: 80
+    targetPort: 4200
+    protocol: TCP
+    name: http
+  selector:
+    app: frontend
