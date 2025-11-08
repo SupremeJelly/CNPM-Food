@@ -14,7 +14,11 @@ public class CorsConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
-        corsConfiguration.setAllowedOrigins(List.of("http://localhost:4200")); // ✅ chỉ cho phép Angular
+        corsConfiguration.setAllowedOrigins(List.of(
+            "http://localhost:4200",  // Angular dev server
+            "http://localhost",        // Kubernetes frontend (port 80)
+            "http://localhost:80"      // Explicit port 80
+        ));
         corsConfiguration.setAllowedHeaders(List.of("*"));
         corsConfiguration.setAllowedMethods(List.of("*"));
         corsConfiguration.setAllowCredentials(true); // ✅ nếu bạn dùng cookie / JWT qua header
