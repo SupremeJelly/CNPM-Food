@@ -77,6 +77,8 @@ jobs:
       # 4️⃣ Deploy to Docker Desktop Kubernetes
       - name: Deploy MySQL
         run: |
+          kubectl create namespace cnpm-food --dry-run=client -o yaml | kubectl apply -f -
+
           kubectl apply -f k8s/services/mysql-deployment.yaml
           echo "Waiting for MySQL to be ready..."
           kubectl wait --for=condition=ready pod -l app=mysql -n cnpm-food --timeout=300s
