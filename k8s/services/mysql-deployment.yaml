@@ -1,0 +1,133 @@
+# ✅ PersistentVolumeClaim (PVC)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: cnpm-food
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # storageClassName: managed-csi  # For Azure AKS
+  # For Docker Desktop, use default storage class (hostpath)
+  # Uncomment line below for Azure AKS:
+  # storageClassName: managed-csi
+
+---
+# ✅ ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-script
+  namespace: cnpm-food
+data:
+  init.sql: |
+    -- Create databases
+    CREATE DATABASE IF NOT EXISTS user_db;
+    CREATE DATABASE IF NOT EXISTS order_db;
+    CREATE DATABASE IF NOT EXISTS restaurant_db;
+    CREATE DATABASE IF NOT EXISTS payment_db;
+
+    -- Create users and grant privileges
+    CREATE USER IF NOT EXISTS 'userservice'@'%' IDENTIFIED BY 'user';
+    GRANT ALL PRIVILEGES ON user_db.* TO 'userservice'@'%';
+
+    CREATE USER IF NOT EXISTS 'orderservice'@'%' IDENTIFIED BY 'order';
+    GRANT ALL PRIVILEGES ON order_db.* TO 'orderservice'@'%';
+
+    CREATE USER IF NOT EXISTS 'restaurantservice'@'%' IDENTIFIED BY 'res';
+    GRANT ALL PRIVILEGES ON restaurant_db.* TO 'restaurantservice'@'%';
+
+    CREATE USER IF NOT EXISTS 'paymentservice'@'%' IDENTIFIED BY 'pay';
+    GRANT ALL PRIVILEGES ON payment_db.* TO 'paymentservice'@'%';
+
+    FLUSH PRIVILEGES;
+
+---
+# ✅ Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: cnpm-food
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+          name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "rootpass"
+        - name: MYSQL_USER
+          value: "appuser"
+        - name: MYSQL_PASSWORD
+          value: "apassword"
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        - name: mysql-init
+          mountPath: /docker-entrypoint-initdb.d
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+      - name: mysql-init
+        configMap:
+          name: mysql-init-script
+
+---
+# ✅ Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: cnpm-food
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+    name: mysql
+  selector:
+    app: mysql
