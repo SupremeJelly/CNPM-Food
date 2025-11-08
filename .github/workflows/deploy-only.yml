@@ -1,0 +1,98 @@
+name: Deploy Only - Docker Desktop K8s
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      deploy_monitoring:
+        description: 'Deploy monitoring stack?'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  deploy:
+    runs-on: self-hosted  # Chạy trên máy local
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify Kubernetes context
+        run: |
+          echo "=== Current Kubernetes Context ==="
+          kubectl config current-context
+          echo ""
+          echo "=== Cluster Info ==="
+          kubectl cluster-info
+          echo ""
+          echo "=== Nodes ==="
+          kubectl get nodes
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace cnpm-food --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy MySQL
+        run: |
+          echo "Deploying MySQL..."
+          kubectl apply -f k8s/services/mysql-deployment.yaml
+          echo "Waiting for MySQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app=mysql -n cnpm-food --timeout=300s || true
+
+      - name: Deploy Microservices
+        run: |
+          echo "Deploying microservices..."
+          kubectl apply -f k8s/services/user-service-deployment.yaml
+          kubectl apply -f k8s/services/restaurant-service-deployment.yaml
+          kubectl apply -f k8s/services/order-service-deployment.yaml
+          kubectl apply -f k8s/services/payment-service-deployment.yaml
+          kubectl apply -f k8s/services/api-gateway-deployment.yaml
+          kubectl apply -f k8s/services/frontend-deployment.yaml
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for deployments to be ready (max 5 minutes each)..."
+          kubectl rollout status deployment/user-service -n cnpm-food --timeout=5m || echo "user-service timeout"
+          kubectl rollout status deployment/restaurant-service -n cnpm-food --timeout=5m || echo "restaurant-service timeout"
+          kubectl rollout status deployment/order-service -n cnpm-food --timeout=5m || echo "order-service timeout"
+          kubectl rollout status deployment/payment-service -n cnpm-food --timeout=5m || echo "payment-service timeout"
+          kubectl rollout status deployment/api-gateway -n cnpm-food --timeout=5m || echo "api-gateway timeout"
+          kubectl rollout status deployment/frontend -n cnpm-food --timeout=5m || echo "frontend timeout"
+
+      - name: Deploy Monitoring
+        if: ${{ github.event.inputs.deploy_monitoring == 'true' }}
+        run: |
+          echo "Deploying monitoring stack..."
+          kubectl apply -f k8s/monitoring/prometheus-deployment.yaml
+          kubectl apply -f k8s/monitoring/grafana-deployment.yaml
+        continue-on-error: true
+
+      - name: Deployment Summary
+        run: |
+          echo "============================================"
+          echo "         DEPLOYMENT SUMMARY"
+          echo "============================================"
+          echo ""
+          echo "=== PODS STATUS ==="
+          kubectl get pods -n cnpm-food
+          echo ""
+          echo "=== SERVICES ==="
+          kubectl get svc -n cnpm-food
+          echo ""
+          echo "=== DEPLOYMENTS ==="
+          kubectl get deployments -n cnpm-food
+          echo ""
+          if [ "${{ github.event.inputs.deploy_monitoring }}" == "true" ]; then
+            echo "=== MONITORING PODS ==="
+            kubectl get pods -n monitoring
+            echo ""
+          fi
+          echo "============================================"
+          echo "Frontend: http://localhost (port-forward needed)"
+          echo "Grafana: http://localhost:30300 (admin/admin)"
+          echo "Prometheus: http://localhost:30090"
+          echo "============================================"
