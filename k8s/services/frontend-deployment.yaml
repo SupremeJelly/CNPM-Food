@@ -18,9 +18,9 @@ spec:
       containers:
       - name: frontend
         image: onlykohi/cnpm-frontend:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
-        - containerPort: 4200
+        - containerPort: 80
           name: http
         env:
         - name: API_GATEWAY_URL
@@ -45,7 +45,7 @@ spec:
   ports:
   - port: 80
     targetPort: 80
-    nodePort: 30001  # Fixed NodePort for frontend
+    nodePort: 30080  # Fixed NodePort for frontend
     protocol: TCP
     name: http
   selector:
