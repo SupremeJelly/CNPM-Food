@@ -2,15 +2,19 @@ package com.vanhuy.user_service.unit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vanhuy.user_service.component.JwtUtil;
+import com.vanhuy.user_service.config.SecurityConfig;
 import com.vanhuy.user_service.controller.AuthController;
 import com.vanhuy.user_service.dto.*;
 import com.vanhuy.user_service.service.AuthService;
+import com.vanhuy.user_service.service.PasswordResetService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -22,11 +26,13 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = AuthController.class, 
-    excludeAutoConfiguration = {
-        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class
-    })
+@WebMvcTest(
+    controllers = AuthController.class,
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE, 
+        classes = SecurityConfig.class
+    )
+)
 @AutoConfigureMockMvc(addFilters = false)
 public class AuthControllerTest {
 
@@ -41,6 +47,9 @@ public class AuthControllerTest {
 
     @MockBean
     private JwtUtil jwtUtil;
+
+    @MockBean
+    private PasswordResetService passwordResetService;
 
     // ==================== REGISTER TESTS ====================
 
