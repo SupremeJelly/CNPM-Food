@@ -17,6 +17,7 @@ export class AppComponent implements OnInit {
   cartItemCount$: Observable<number> | undefined;
   isLoggedIn: boolean = false;
   currentUser: string | null = null;
+  userRole: string | null = null;
   isDropdownOpen: boolean = false;
 
   userInfo : UserDTO | null = null;
@@ -52,7 +53,8 @@ export class AppComponent implements OnInit {
       this.currentUser = username;
     });
 
-    
+    // Subscribe vào role người dùng
+    this.userRole = this.authService.getRoleFromToken();
   }
 
   toggleDropdown() {
