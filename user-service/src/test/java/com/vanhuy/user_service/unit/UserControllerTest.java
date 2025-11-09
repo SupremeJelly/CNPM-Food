@@ -1,7 +1,6 @@
 package com.vanhuy.user_service.unit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vanhuy.user_service.component.JwtRequestFilter;
 import com.vanhuy.user_service.controller.UserController;
 import com.vanhuy.user_service.dto.ProfileResponse;
 import com.vanhuy.user_service.dto.ProfileUpdateDTO;
@@ -12,11 +11,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,14 +26,13 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(UserController.class)
+@WebMvcTest(controllers = UserController.class, 
+    excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class
+    })
+@AutoConfigureMockMvc(addFilters = false)
 public class UserControllerTest {
-
-    @MockBean
-    private AuthenticationProvider authenticationProvider;
-    
-    @MockBean
-    private JwtRequestFilter jwtRequestFilter;
 
     @Autowired
     private MockMvc mockMvc;
