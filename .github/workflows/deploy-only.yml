@@ -38,6 +38,8 @@ jobs:
 
       - name: Deploy MySQL
         run: |
+          echo "Creating ConfigMap from init.sql..."
+          kubectl create configmap mysql-init-script -n cnpm-food --from-file=init.sql=mysql-init/init.sql --dry-run=client -o yaml | kubectl apply -f -
           echo "Deploying MySQL..."
           kubectl apply -f k8s/services/mysql-deployment.yaml
           echo "Waiting for MySQL to be ready..."

@@ -80,6 +80,9 @@ jobs:
           # Create namespace if not exists
           kubectl create namespace cnpm-food --dry-run=client -o yaml | kubectl apply -f -
 
+          # Create ConfigMap from init.sql BEFORE deploying MySQL
+          kubectl create configmap mysql-init-script -n cnpm-food --from-file=init.sql=mysql-init/init.sql --dry-run=client -o yaml | kubectl apply -f -
+
           # Clean up existing MySQL if exists
           kubectl delete deployment mysql -n cnpm-food --ignore-not-found=true
           kubectl delete service mysql -n cnpm-food --ignore-not-found=true
