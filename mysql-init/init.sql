@@ -149,50 +149,28 @@ CREATE TABLE password_reset_token (
 );
 
 -- ============================================
--- TÀI KHOẢN MẪU (TẤT CẢ DÙNG PASSWORD: 123456)
+-- TÀI KHOẢN MẪU (3 TÀI KHOẢN)
 -- ============================================
-INSERT INTO users (address, email, is_active, password, profile_image_name, username) VALUES
--- user1 - password: 123456
-('123 Street A', 'user1@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user1'),
--- user2 - password: 123456
-('123 Street B', 'user2@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user2'),
--- user3 - password: 123456
-('123 Street C', 'user3@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user3'),
--- user4 - password: 123456
-('123 Street D', 'user4@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user4'),
--- user5 - password: 123456
-('123 Street E', 'user5@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user5'),
--- user6 - password: 123456
-('123 Street F', 'user6@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user6'),
--- user7 - password: 123456
-('123 Street G', 'user7@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user7'),
--- user8 - password: 123456
-('123 Street H', 'user8@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user8'),
--- user9 - password: 123456
-('123 Street I', 'user9@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user9'),
--- user10 - password: 123456
-('123 Street J', 'user10@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'user10'),
--- admin - password: 123456 (ROLE_ADMIN)
-('123 Street Z', 'admin@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'admin'),
+INSERT INTO users (address, email, is_active, password, profile_image_name, username, restaurant_id) VALUES
 -- khoi - password: 123456 (ROLE_ADMIN)
-('789 Admin Street', 'khoi@admin.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'khoi'),
--- restaurant1 - password: 123456 (ROLE_RESTAURANT, quản lý Burger King - restaurant_id=1)
-('101 Restaurant St', 'restaurant1@example.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'restaurant1');
-
--- Update restaurant_id cho restaurant owner
-UPDATE users SET restaurant_id = 1 WHERE username = 'restaurant1';
-
-INSERT INTO user_roles (user_id, role)
-SELECT user_id, 'ROLE_USER'
-FROM users
-WHERE username LIKE 'user%';
+('789 Admin Street', 'khoi@admin.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'khoi', NULL),
+-- user1 - password: 111111 (ROLE_USER)
+('456 User Street', 'user1@example.com', 1, '$2a$12$46jwxBV9b1rtqQaiWmSr9eXITEvpIQ71pSrSDOlVDRfTfjHL17q.6', NULL, 'user1', NULL),
+-- restaurant1 - password: 222222 (ROLE_RESTAURANT, quản lý Burger King - restaurant_id=1)
+('789 Restaurant Street', 'restaurant1@example.com', 1, '$2a$12$oN9b50keeSv82nCYuj1LueB96WSUOa2LXz9XnvUH.tK8L/NgOSFRi', NULL, 'restaurant1', 1);
 
 INSERT INTO user_roles (user_id, role)
 SELECT user_id, 'ROLE_ADMIN'
 FROM users
-WHERE username IN ('admin', 'khoi');
--- Add ROLE_RESTAURANT for restaurant owner
+WHERE username = 'khoi';
+
+INSERT INTO user_roles (user_id, role)
+SELECT user_id, 'ROLE_USER'
+FROM users
+WHERE username = 'user1';
+
 INSERT INTO user_roles (user_id, role)
 SELECT user_id, 'ROLE_RESTAURANT'
 FROM users
 WHERE username = 'restaurant1';
+
