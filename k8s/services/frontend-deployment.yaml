@@ -20,7 +20,7 @@ spec:
         image: onlykohi/cnpm-frontend:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 4200
+        - containerPort: 80
           name: http
         env:
         - name: API_GATEWAY_URL
@@ -43,9 +43,9 @@ metadata:
 spec:
   type: NodePort
   ports:
-  - port: 4200
-    targetPort: 4200
-    nodePort: 32000  # Using a different port range
+  - port: 80
+    targetPort: 80
+    nodePort: 32000
     protocol: TCP
     name: http
   selector:
