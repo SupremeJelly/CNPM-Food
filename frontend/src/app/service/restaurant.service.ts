@@ -86,4 +86,48 @@ export class RestaurantService {
   toggleMenuItemAvailability(restaurantId: number, menuItemId: number): Observable<void> {
     return this.http.post<void>(`${this.restaurantUrl}/${restaurantId}/menu-items/${menuItemId}/toggle-availability`, {});
   }
+
+  // ===== Convenience methods for Restaurant Owners =====
+  
+  getRestaurantById(restaurantId: number): Observable<RestaurantDTO> {
+    return this.http.get<RestaurantDTO>(`${this.restaurantUrl}/${restaurantId}`);
+  }
+
+  // Simplified wrapper methods (called by restaurant owner component)
+  addNewMenuItem(menuItem: MenuItemDTO): Observable<MenuItemDTO> {
+    const restaurantId = menuItem.restaurantId;
+    const createDTO: MenuItemCreateDTO = {
+      restaurantId: restaurantId,
+      name: menuItem.name,
+      description: menuItem.description || '',
+      price: menuItem.price,
+      category: menuItem.category || 'Other'
+    };
+    return this.createMenuItem(restaurantId, createDTO);
+  }
+
+  updateExistingMenuItem(menuItemId: number, menuItem: MenuItemDTO): Observable<MenuItemDTO> {
+    const restaurantId = menuItem.restaurantId;
+    const updateDTO: MenuItemUpdateDTO = {
+      name: menuItem.name,
+      description: menuItem.description || '',
+      price: menuItem.price,
+      category: menuItem.category
+    };
+    return this.updateMenuItem(restaurantId, menuItemId, updateDTO);
+  }
+
+  deleteExistingMenuItem(menuItemId: number): Observable<void> {
+    return this.http.delete<void>(`${this.menuUrl}/${menuItemId}`);
+  }
+
+  updateRestaurantInfo(restaurantId: number, restaurant: any): Observable<RestaurantDTO> {
+    const updateDTO: RestaurantUpdateDTO = {
+      name: restaurant.name,
+      address: restaurant.address,
+      description: restaurant.description || '',
+      phone: restaurant.phone || ''
+    };
+    return this.updateRestaurant(restaurantId, updateDTO);
+  }
 }

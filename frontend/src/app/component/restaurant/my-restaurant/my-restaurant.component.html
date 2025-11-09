@@ -1,0 +1,148 @@
+<div class="container mx-auto p-6">
+  <!-- Restaurant Info Section -->
+  <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-3xl font-bold">Thông tin nhà hàng</h1>
+      <button *ngIf="!isEditingRestaurant" (click)="startEditRestaurant()" 
+              class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+        Chỉnh sửa
+      </button>
+    </div>
+
+    <!-- View Mode -->
+    <div *ngIf="!isEditingRestaurant && restaurant">
+      <div class="mb-4">
+        <img [src]="restaurant.imageUrl" class="w-full h-64 object-cover rounded-lg mb-4" alt="{{ restaurant.name }}">
+      </div>
+      <h2 class="text-2xl font-semibold mb-2">{{ restaurant.name }}</h2>
+      <p class="text-gray-600 mb-2"><strong>Địa chỉ:</strong> {{ restaurant.address }}</p>
+      <p class="text-gray-600 mb-2"><strong>Mô tả:</strong> {{ restaurant.description }}</p>
+      <p class="text-gray-600"><strong>Điện thoại:</strong> {{ restaurant.phone }}</p>
+    </div>
+
+    <!-- Edit Mode -->
+    <form *ngIf="isEditingRestaurant" (ngSubmit)="saveRestaurant()" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-1">Tên nhà hàng</label>
+        <input type="text" [(ngModel)]="restaurantForm.name" name="name" required
+               class="w-full border border-gray-300 rounded px-3 py-2">
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Địa chỉ</label>
+        <input type="text" [(ngModel)]="restaurantForm.address" name="address" required
+               class="w-full border border-gray-300 rounded px-3 py-2">
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Mô tả</label>
+        <textarea [(ngModel)]="restaurantForm.description" name="description" rows="3"
+                  class="w-full border border-gray-300 rounded px-3 py-2"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Điện thoại</label>
+        <input type="text" [(ngModel)]="restaurantForm.phone" name="phone"
+               class="w-full border border-gray-300 rounded px-3 py-2">
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">URL hình ảnh</label>
+        <input type="text" [(ngModel)]="restaurantForm.imageUrl" name="imageUrl"
+               class="w-full border border-gray-300 rounded px-3 py-2">
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+          Lưu
+        </button>
+        <button type="button" (click)="cancelEditRestaurant()" 
+                class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+          Hủy
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Menu Items Section -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold">Quản lý thực đơn</h2>
+      <button (click)="startAddMenuItem()" 
+              class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+        + Thêm món mới
+      </button>
+    </div>
+
+    <!-- Menu Items Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div *ngFor="let item of menuItems" class="bg-white rounded-md shadow-md overflow-hidden border border-gray-200">
+        <img [src]="item.imageUrl" class="w-full h-40 object-cover" alt="{{ item.name }}">
+        <div class="p-4">
+          <h5 class="text-lg font-semibold mb-2">{{ item.name }}</h5>
+          <p class="text-sm text-gray-600 mb-2 truncate">{{ item.description }}</p>
+          <div class="flex justify-between items-center mb-3">
+            <span class="text-lg font-bold text-green-600">${{ item.price.toFixed(2) }}</span>
+            <span class="text-sm text-gray-500">Kho: {{ item.stock }}</span>
+          </div>
+          <div class="flex gap-2">
+            <button (click)="startEditMenuItem(item)" 
+                    class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+              Sửa
+            </button>
+            <button (click)="deleteMenuItem(item.menuItemId)" 
+                    class="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+              Xóa
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu Item Edit Modal -->
+  <div *ngIf="isEditingMenuItem" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <h3 class="text-xl font-bold mb-4">
+        {{ editingItem.menuItemId === 0 ? 'Thêm món mới' : 'Chỉnh sửa món ăn' }}
+      </h3>
+      <form (ngSubmit)="saveMenuItem()" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Tên món</label>
+          <input type="text" [(ngModel)]="editingItem.name" name="name" required
+                 class="w-full border border-gray-300 rounded px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Mô tả</label>
+          <textarea [(ngModel)]="editingItem.description" name="description" rows="3"
+                    class="w-full border border-gray-300 rounded px-3 py-2"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Danh mục</label>
+          <input type="text" [(ngModel)]="editingItem.category" name="category" required
+                 class="w-full border border-gray-300 rounded px-3 py-2"
+                 placeholder="Ví dụ: Main Course, Appetizer, Dessert">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Giá</label>
+          <input type="number" [(ngModel)]="editingItem.price" name="price" required min="0" step="0.01"
+                 class="w-full border border-gray-300 rounded px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Số lượng trong kho</label>
+          <input type="number" [(ngModel)]="editingItem.stock" name="stock" min="0"
+                 class="w-full border border-gray-300 rounded px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">URL hình ảnh</label>
+          <input type="text" [(ngModel)]="editingItem.imageUrl" name="imageUrl"
+                 class="w-full border border-gray-300 rounded px-3 py-2">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="submit" class="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+            Lưu
+          </button>
+          <button type="button" (click)="cancelEditMenuItem()" 
+                  class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+            Hủy
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

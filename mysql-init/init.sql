@@ -126,7 +126,8 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     address VARCHAR(255),
     profile_image_name VARCHAR(255),
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    restaurant_id BIGINT DEFAULT NULL
 );
 
 -- 2. Tạo bảng 'user_roles' (từ @ElementCollection)
@@ -147,27 +148,29 @@ CREATE TABLE password_reset_token (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
-INSERT INTO users (address, email, is_active, password, profile_image_name, username) VALUES
-('123 Street A', 'user1@example.com', 1, 'password1', NULL, 'user1'),
-('123 Street B', 'user2@example.com', 1, 'password2', NULL, 'user2'),
-('123 Street C', 'user3@example.com', 1, 'password3', NULL, 'user3'),
-('123 Street D', 'user4@example.com', 1, 'password4', NULL, 'user4'),
-('123 Street E', 'user5@example.com', 1, 'password5', NULL, 'user5'),
-('123 Street F', 'user6@example.com', 1, 'password6', NULL, 'user6'),
-('123 Street G', 'user7@example.com', 1, 'password7', NULL, 'user7'),
-('123 Street H', 'user8@example.com', 1, 'password8', NULL, 'user8'),
-('123 Street I', 'user9@example.com', 1, 'password9', NULL, 'user9'),
-('123 Street J', 'user10@example.com', 1, 'password10', NULL, 'user10'),
-('123 Street z', 'admin@example.com', 1, 'admin', NULL, 'admin'),
--- Tài khoản admin mới: username=khoi, password=123456 (đã mã hóa BCrypt)
-('789 Admin Street', 'khoi@admin.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'khoi');
-
-INSERT INTO user_roles (user_id, role)
-SELECT user_id, 'ROLE_USER'
-FROM users
-WHERE username LIKE 'user%';
+-- ============================================
+-- TÀI KHOẢN MẪU (3 TÀI KHOẢN)
+-- ============================================
+INSERT INTO users (address, email, is_active, password, profile_image_name, username, restaurant_id) VALUES
+-- khoi - password: 123456 (ROLE_ADMIN)
+('789 Admin Street', 'khoi@admin.com', 1, '$2a$10$N9qo8uLOickgx2ZMRZoMye6mJIAzN5kJiOdQ5Xl8JJl8UvQQ5hWoW', NULL, 'khoi', NULL),
+-- user1 - password: 111111 (ROLE_USER)
+('456 User Street', 'user1@example.com', 1, '$2a$12$46jwxBV9b1rtqQaiWmSr9eXITEvpIQ71pSrSDOlVDRfTfjHL17q.6', NULL, 'user1', NULL),
+-- restaurant1 - password: 222222 (ROLE_RESTAURANT, quản lý Burger King - restaurant_id=1)
+('789 Restaurant Street', 'restaurant1@example.com', 1, '$2a$12$oN9b50keeSv82nCYuj1LueB96WSUOa2LXz9XnvUH.tK8L/NgOSFRi', NULL, 'restaurant1', 1);
 
 INSERT INTO user_roles (user_id, role)
 SELECT user_id, 'ROLE_ADMIN'
 FROM users
-WHERE username IN ('admin', 'khoi');
+WHERE username = 'khoi';
+
+INSERT INTO user_roles (user_id, role)
+SELECT user_id, 'ROLE_USER'
+FROM users
+WHERE username = 'user1';
+
+INSERT INTO user_roles (user_id, role)
+SELECT user_id, 'ROLE_RESTAURANT'
+FROM users
+WHERE username = 'restaurant1';
+

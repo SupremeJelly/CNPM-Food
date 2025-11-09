@@ -82,4 +82,10 @@ public class MenuItemService {
         );
     }
 
+    public void deleteMenuItem(Integer menuItemId) {
+        MenuItem menuItem = menuItemRepository.findById(menuItemId)
+                .orElseThrow(() -> new RestaurantNotFoundException("Menu item not found"));
+        menuItemRepository.delete(menuItem);
+    }
+
 }

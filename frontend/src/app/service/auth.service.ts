@@ -148,5 +148,22 @@ export class AuthService {
     return null;
   }
 
+  getCurrentUser(): { username: string; role: string; restaurantId?: number } | null {
+    const token = this.getToken();
+    if (token && !this.jwtHelper.isTokenExpired(token)) {
+      try {
+        const decodedToken = this.jwtHelper.decodeToken(token);
+        return {
+          username: decodedToken.sub,
+          role: decodedToken.roles && decodedToken.roles.length > 0 ? decodedToken.roles[0].authority : '',
+          restaurantId: decodedToken.restaurantId // Giả sử backend đã thêm vào token
+        };
+      } catch (error) {
+        return null;
+      }
+    }
+    return null;
+  }
+
 
 }

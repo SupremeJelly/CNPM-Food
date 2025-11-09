@@ -23,6 +23,7 @@ import { MenuManagementComponent } from './component/admin/menu-management/menu-
 import { OrderManagementComponent } from './component/admin/order-management/order-management.component';
 import { UserFormDialogComponent } from './component/admin/user-form-dialog/user-form-dialog.component';
 import { PaymentComponent } from './component/payment/payment.component';
+import { MyRestaurantComponent } from './component/restaurant/my-restaurant/my-restaurant.component';
 
 @NgModule({
   declarations: [
@@ -44,7 +45,8 @@ import { PaymentComponent } from './component/payment/payment.component';
     RestaurantManagementComponent,
   MenuManagementComponent,
     OrderManagementComponent,
-    UserFormDialogComponent
+    UserFormDialogComponent,
+    MyRestaurantComponent
   ],
   imports: [
     BrowserModule,
