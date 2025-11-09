@@ -27,11 +27,11 @@ spec:
           value: "http://api-gateway:9000"
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "50m"
+            memory: "512Mi"
+            cpu: "250m"
           limits:
-            memory: "256Mi"
-            cpu: "100m"
+            memory: "1Gi"
+            cpu: "500m"
 ---
 apiVersion: v1
 kind: Service
@@ -43,9 +43,9 @@ metadata:
 spec:
   type: NodePort
   ports:
-  - port: 80
-    targetPort: 80
-    nodePort: 30080  # Fixed NodePort for frontend
+  - port: 4200
+    targetPort: 4200
+    nodePort: 30420  # Fixed NodePort for frontend dev server
     protocol: TCP
     name: http
   selector:
