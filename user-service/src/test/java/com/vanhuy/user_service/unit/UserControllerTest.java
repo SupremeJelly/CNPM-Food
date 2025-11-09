@@ -1,6 +1,8 @@
 package com.vanhuy.user_service.unit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vanhuy.user_service.component.JwtUtil;
+import com.vanhuy.user_service.config.SecurityConfig;
 import com.vanhuy.user_service.controller.UserController;
 import com.vanhuy.user_service.dto.ProfileResponse;
 import com.vanhuy.user_service.dto.ProfileUpdateDTO;
@@ -14,7 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -26,11 +29,13 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = UserController.class, 
-    excludeAutoConfiguration = {
-        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class
-    })
+@WebMvcTest(
+    controllers = UserController.class,
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE, 
+        classes = SecurityConfig.class
+    )
+)
 @AutoConfigureMockMvc(addFilters = false)
 public class UserControllerTest {
 
@@ -45,6 +50,9 @@ public class UserControllerTest {
 
     @MockBean
     private ProfileService profileService;
+
+    @MockBean
+    private JwtUtil jwtUtil;
 
     private User mockUser;
     private ProfileResponse mockProfileResponse;
