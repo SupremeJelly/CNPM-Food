@@ -35,6 +35,10 @@ spec:
           value: "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration"
         - name: MANAGEMENT_HEALTH_REDIS_ENABLED
           value: "false"
+        - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_ADD-TO-SIMPLE-URL-HANDLER-MAPPING
+          value: "true"
+        - name: ALLOWED_ORIGINS
+          value: "http://localhost,http://localhost:4200,http://localhost:80"
         livenessProbe:
           httpGet:
             path: /actuator/health
@@ -51,11 +55,11 @@ spec:
           timeoutSeconds: 10  # Increased for slow Redis health check
         resources:
           requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
             memory: "512Mi"
             cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
 ---
 apiVersion: v1
 kind: Service
