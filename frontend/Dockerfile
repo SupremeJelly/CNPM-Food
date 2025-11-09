@@ -8,11 +8,15 @@ RUN npm install -g @angular/cli && npm install
 
 COPY . .
 
-RUN npm run build
+RUN npm run build && ls -la dist/
 
 FROM nginx:alpine
 
-COPY --from=builder /app/dist/frontend /usr/share/nginx/html
+# Copy the built files from correct location
+COPY --from=builder /app/dist/frontend /usr/share/nginx/html/
+
+# Debug: List files in nginx html directory
+RUN ls -la /usr/share/nginx/html/
 
 RUN echo 'server { \
     listen 80; \
