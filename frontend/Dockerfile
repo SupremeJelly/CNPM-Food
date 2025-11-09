@@ -12,8 +12,8 @@ RUN npm run build && ls -la dist/
 
 FROM nginx:alpine
 
-# Copy the built files from correct location
-COPY --from=builder /app/dist/frontend /usr/share/nginx/html/
+# Copy the built files from browser directory
+COPY --from=builder /app/dist/frontend/browser/* /usr/share/nginx/html/
 
 # Debug: List files in nginx html directory
 RUN ls -la /usr/share/nginx/html/
@@ -24,7 +24,12 @@ RUN echo 'server { \
     root /usr/share/nginx/html; \
     index index.html; \
     location / { \
-        try_files $uri $uri/ /index.html; \
+        try_files $uri $uri/ /index.html =404; \
+    } \
+    location ~ \.html$ { \
+        add_header Cache-Control "private, no-cache, no-store, must-revalidate"; \
+        add_header Expires "Sat, 01 Jan 2000 00:00:00 GMT"; \
+        add_header Pragma no-cache; \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
