@@ -28,6 +28,16 @@
                     <!-- Kiểm tra trạng thái đăng nhập -->
                     <ng-container *ngIf="isLoggedIn; else loggedOutTemplate">
                         <a routerLink="/profile"><span  class="text-gray-800 font-bold">Hi, {{ currentUser }}</span></a>
+                        <!-- Link Quản lý nhà hàng cho ROLE_RESTAURANT -->
+                        <a *ngIf="userRole === 'ROLE_RESTAURANT'" routerLink="/restaurant-management" 
+                           class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
+                            Quản lý nhà hàng
+                        </a>
+                        <!-- Link Quản trị hệ thống cho ROLE_ADMIN -->
+                        <a *ngIf="userRole === 'ROLE_ADMIN'" routerLink="/admin" 
+                           class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                            Quản trị hệ thống
+                        </a>
                         <button (click)="logout()" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
                             Logout 
                         </button>
