@@ -63,11 +63,10 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
   - port: 9000
     targetPort: 9000
-    nodePort: 30900  # Fixed NodePort for consistent access
     protocol: TCP
     name: http
   selector:
