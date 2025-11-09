@@ -79,4 +79,14 @@ public class MenuItemController {
         return ResponseEntity.ok(price);
     }
 
+    @DeleteMapping("/{menuItemId}")
+    public ResponseEntity<Void> deleteMenuItem(@PathVariable Integer menuItemId) {
+        try {
+            menuItemService.deleteMenuItem(menuItemId);
+            return ResponseEntity.noContent().build();
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
 }

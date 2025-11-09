@@ -14,6 +14,7 @@ import { ResetPasswordComponent } from './component/reset-password/reset-passwor
 import { UnauthorizedComponent } from './component/unauthorized/unauthorized.component';
 import { DashboardComponent } from './component/admin/dashboard/dashboard.component';
 import { PaymentComponent } from './component/payment/payment.component';
+import { MyRestaurantComponent } from './component/restaurant/my-restaurant/my-restaurant.component';
 
 const routes: Routes = [
   { path: '', component: ListRestaurantComponent },
@@ -32,6 +33,12 @@ const routes: Routes = [
     canActivate: [AuthGuard], 
     data: { roles: ['ROLE_ADMIN'] },
     loadChildren: () => import('./component/admin/dashboard-routing/dashboard-routing-routing.module').then(m => m.DashboardRoutingRoutingModule)
+  },
+  { 
+    path: 'restaurant-management', 
+    component: MyRestaurantComponent,
+    canActivate: [AuthGuard], 
+    data: { roles: ['ROLE_RESTAURANT'] }
   },
   { path: 'payment', component:  PaymentComponent , canActivate: [AuthGuard]},
 

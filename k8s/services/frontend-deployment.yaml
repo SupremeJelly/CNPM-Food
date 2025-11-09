@@ -41,11 +41,10 @@ metadata:
   labels:
     app: frontend
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
   - port: 4200
-    targetPort: 4200
-    nodePort: 30420  # Fixed NodePort for frontend dev server
+    targetPort: 80
     protocol: TCP
     name: http
   selector:
