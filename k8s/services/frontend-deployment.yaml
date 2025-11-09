@@ -41,10 +41,11 @@ metadata:
   labels:
     app: frontend
 spec:
-  type: LoadBalancer  # Change to LoadBalancer for external access
+  type: NodePort
   ports:
   - port: 80
-    targetPort: 4200
+    targetPort: 80
+    nodePort: 30001  # Fixed NodePort for frontend
     protocol: TCP
     name: http
   selector:
