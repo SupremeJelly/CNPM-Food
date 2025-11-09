@@ -18,7 +18,7 @@ spec:
       containers:
       - name: frontend
         image: onlykohi/cnpm-frontend:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 4200
           name: http
@@ -27,11 +27,11 @@ spec:
           value: "http://api-gateway:9000"
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "50m"
+            memory: "512Mi"
+            cpu: "250m"
           limits:
-            memory: "256Mi"
-            cpu: "100m"
+            memory: "1Gi"
+            cpu: "500m"
 ---
 apiVersion: v1
 kind: Service
@@ -41,10 +41,11 @@ metadata:
   labels:
     app: frontend
 spec:
-  type: LoadBalancer  # Change to LoadBalancer for external access
+  type: NodePort
   ports:
-  - port: 80
+  - port: 4200
     targetPort: 4200
+    nodePort: 32000  # Using a different port range
     protocol: TCP
     name: http
   selector:
