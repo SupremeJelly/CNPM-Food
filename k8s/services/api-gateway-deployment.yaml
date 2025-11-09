@@ -18,7 +18,7 @@ spec:
       containers:
       - name: api-gateway
         image: onlykohi/cnpm-api-gateway:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 9000
           name: http
