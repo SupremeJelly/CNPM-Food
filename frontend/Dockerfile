@@ -12,7 +12,7 @@ RUN npm run build
 
 FROM nginx:alpine
 
-COPY --from=builder /app/dist/food-app/browser /usr/share/nginx/html
+COPY --from=builder /app/dist/frontend /usr/share/nginx/html
 
 RUN echo 'server { \
     listen 80; \
