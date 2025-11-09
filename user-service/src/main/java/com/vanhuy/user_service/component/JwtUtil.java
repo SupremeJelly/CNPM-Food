@@ -1,5 +1,6 @@
 package com.vanhuy.user_service.component;
 
+import com.vanhuy.user_service.model.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -55,6 +56,15 @@ public class JwtUtil {
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", userDetails.getAuthorities());
+        
+        // Add restaurantId if user is a restaurant owner
+        if (userDetails instanceof User) {
+            User user = (User) userDetails;
+            if (user.getRestaurantId() != null) {
+                claims.put("restaurantId", user.getRestaurantId());
+            }
+        }
+        
         return createToken(claims, userDetails.getUsername());
     }
 

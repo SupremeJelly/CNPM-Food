@@ -93,4 +93,28 @@ public class RestaurantService {
         return restaurantRepository.searchByKeyword(keyword, pageable)
                 .map(this::toDTO);
     }
+
+    public RestaurantDTO getRestaurantDTOById(Integer restaurantId) {
+        Restaurant restaurant = getRestaurantById(restaurantId);
+        return toDTO(restaurant);
+    }
+
+    public RestaurantDTO updateRestaurant(Integer restaurantId, RestaurantDTO restaurantDTO, MultipartFile image) throws IOException {
+        Restaurant restaurant = getRestaurantById(restaurantId);
+        
+        // Update basic fields
+        restaurant.setName(restaurantDTO.name());
+        restaurant.setAddress(restaurantDTO.address());
+        
+        // Update image if provided
+        if (image != null && !image.isEmpty()) {
+            String oldImageFileName = restaurant.getImage();
+            String newImageFileName = fileStorageService.uploadImage(image, oldImageFileName);
+            restaurant.setImage(newImageFileName);
+        }
+        
+        restaurantRepository.save(restaurant);
+        log.info("Successfully updated restaurant {}", restaurantId);
+        return toDTO(restaurant);
+    }
 }
