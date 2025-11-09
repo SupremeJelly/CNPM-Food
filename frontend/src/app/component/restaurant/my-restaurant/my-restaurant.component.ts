@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';import { Component, OnInit } from '@angular/core';import { Component, OnInit } from '@angular/core';import { Component, Input, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';import { Component, OnInit } from '@angular/core';import { Component, OnInit } from '@angular/core';import { Component, OnInit } from '@angular/core';import { Component, Input, OnInit } from '@angular/core';
 
 import { RestaurantDTO } from '../../../dto/restaurant/RestaurantDTO';
 
@@ -6,7 +6,7 @@ import { MenuItemDTO } from '../../../dto/restaurant/MenuItemDTO';import { Resta
 
 import { RestaurantService } from '../../../service/restaurant.service';
 
-import { AuthService } from '../../../service/auth.service';import { MenuItemDTO } from '../../../dto/restaurant/MenuItemDTO';import { MenuItem } from '../../../dto/MenuItem';import { MenuItem } from '../../dto/MenuItem';
+import { AuthService } from '../../../service/auth.service';import { MenuItemDTO } from '../../../dto/restaurant/MenuItemDTO';import { RestaurantDTO } from '../../../dto/restaurant/RestaurantDTO';
 
 import { Router } from '@angular/router';
 
@@ -14,7 +14,7 @@ import { RestaurantService } from '../../../service/restaurant.service';
 
 @Component({
 
-  selector: 'app-my-restaurant',import { AuthService } from '../../../service/auth.service';import { MenuItemDTO } from '../../../dto/restaurant/MenuItemDTO';import { MenuItemDTO } from '../../dto/restaurant/MenuItemDTO';
+  selector: 'app-my-restaurant',import { AuthService } from '../../../service/auth.service';import { MenuItemDTO } from '../../../dto/restaurant/MenuItemDTO';import { MenuItem } from '../../../dto/MenuItem';import { MenuItem } from '../../dto/MenuItem';
 
   templateUrl: './my-restaurant.component.html',
 
@@ -22,7 +22,7 @@ import { RestaurantService } from '../../../service/restaurant.service';
 
 })
 
-export class MyRestaurantComponent implements OnInit {import { RestaurantDTO } from '../../../dto/restaurant/RestaurantDTO';import { RestaurantService } from '../../service/restaurant.service';
+export class MyRestaurantComponent implements OnInit {import { RestaurantService } from '../../../service/restaurant.service';
 
 
 
@@ -30,151 +30,328 @@ export class MyRestaurantComponent implements OnInit {import { RestaurantDTO } f
 
   menuItems: MenuItemDTO[] = [];
 
-  restaurantId!: number;  selector: 'app-my-restaurant',import { RestaurantService } from '../../../service/restaurant.service';import { ActivatedRoute } from '@angular/router';
+  restaurantId!: number;  selector: 'app-my-restaurant',import { AuthService } from '../../../service/auth.service';import { MenuItemDTO } from '../../../dto/restaurant/MenuItemDTO';import { MenuItemDTO } from '../../dto/restaurant/MenuItemDTO';
 
 
 
-  // Edit mode flags  templateUrl: './my-restaurant.component.html',
+  isEditingRestaurant = false;  templateUrl: './my-restaurant.component.html',
 
-  isEditingRestaurant = false;
+  isEditingMenuItem = false;
 
-  isEditingMenuItem = false;  styleUrl: './my-restaurant.component.css'import { AuthService } from '../../../service/auth.service';import { CartItem } from '../../dto/CartItem';
+  editingItem: MenuItemDTO = {} as MenuItemDTO;  styleUrl: './my-restaurant.component.css'import { Router } from '@angular/router';
 
-  editingItem: MenuItemDTO = {} as MenuItemDTO;
+  restaurantForm: any = {};
 
 })
 
-  // Form data for restaurant
-
-  restaurantForm: any = {};export class MyRestaurantComponent implements OnInit {import { Router } from '@angular/router';import { CartService } from '../../service/cart.service';
-
-
-
   constructor(
 
-    private restaurantService: RestaurantService,
+    private restaurantService: RestaurantService,export class MyRestaurantComponent implements OnInit {import { RestaurantDTO } from '../../../dto/restaurant/RestaurantDTO';import { RestaurantService } from '../../service/restaurant.service';
 
-    private authService: AuthService,  restaurant: RestaurantDTO | null = null;
+    private authService: AuthService,
 
     private router: Router
 
-  ) { }  menuItems: MenuItemDTO[] = [];
+  ) { }
 
+  restaurant: RestaurantDTO | null = null;@Component({
 
+  ngOnInit(): void {
 
-  ngOnInit(): void {  restaurantId!: number;@Component({@Component({
-
-    const currentUser = this.authService.getCurrentUser();
+    const currentUser = this.authService.getCurrentUser();  menuItems: MenuItemDTO[] = [];
 
     
 
-    if (!currentUser || !currentUser.restaurantId) {
+    if (!currentUser || !currentUser.restaurantId) {  restaurantId!: number;  selector: 'app-my-restaurant',import { RestaurantService } from '../../../service/restaurant.service';import { ActivatedRoute } from '@angular/router';
 
-      alert('Bạn không có quyền quản lý nhà hàng');  // Edit mode flags  selector: 'app-my-restaurant',  selector: 'app-restaurant-detail',
+      alert('Bạn không có quyền quản lý nhà hàng');
 
       this.router.navigate(['/login']);
 
-      return;  isEditingRestaurant = false;
+      return;
 
-    }
-
-  isEditingMenuItem = false;  templateUrl: './my-restaurant.component.html',  templateUrl: './restaurant-detail.component.html',
-
-    this.restaurantId = currentUser.restaurantId;
-
-    this.loadRestaurant();  editingItem: MenuItemDTO = {} as MenuItemDTO;
-
-    this.loadMenuItems();
-
-  }  styleUrl: './my-restaurant.component.css'  styleUrl: './restaurant-detail.component.css'
+    }  // Edit mode flags  templateUrl: './my-restaurant.component.html',
 
 
 
-  loadRestaurant(): void {  // Form data for restaurant
+    this.restaurantId = currentUser.restaurantId;  isEditingRestaurant = false;
 
-    this.restaurantService.getRestaurantById(this.restaurantId)
+    this.loadRestaurant();
 
-      .subscribe({  restaurantForm: any = {};})})
+    this.loadMenuItems();  isEditingMenuItem = false;  styleUrl: './my-restaurant.component.css'import { AuthService } from '../../../service/auth.service';import { CartItem } from '../../dto/CartItem';
 
-        next: (data) => {
+  }
+
+  editingItem: MenuItemDTO = {} as MenuItemDTO;
+
+  loadRestaurant(): void {
+
+    this.restaurantService.getRestaurantById(this.restaurantId)})
+
+      .subscribe({
+
+        next: (data) => {  // Form data for restaurant
 
           this.restaurant = data;
 
-          this.restaurantForm = { ...data };
+          this.restaurantForm = { ...data };  restaurantForm: any = {};export class MyRestaurantComponent implements OnInit {import { Router } from '@angular/router';import { CartService } from '../../service/cart.service';
 
-        },  constructor(export class MyRestaurantComponent implements OnInit {export class RestaurantDetailComponent implements OnInit {
+        },
 
         error: (err) => {
 
-          console.error('Error loading restaurant:', err);    private restaurantService: RestaurantService,
+          console.error('Error loading restaurant:', err);
 
-          alert('Không thể tải thông tin nhà hàng');
+          alert('Không thể tải thông tin nhà hàng');  constructor(
 
-        }    private authService: AuthService,
+        }
 
-      });
+      });    private restaurantService: RestaurantService,
 
-  }    private router: Router
+  }
+
+    private authService: AuthService,  restaurant: RestaurantDTO | null = null;
+
+  loadMenuItems(): void {
+
+    this.restaurantService.getMenuItemsByRestaurantId(this.restaurantId)    private router: Router
+
+      .subscribe({
+
+        next: (data) => {  ) { }  menuItems: MenuItemDTO[] = [];
+
+          this.menuItems = data;
+
+        },
+
+        error: (err) => {
+
+          console.error('Error loading menu items:', err);  ngOnInit(): void {  restaurantId!: number;@Component({@Component({
+
+        }
+
+      });    const currentUser = this.authService.getCurrentUser();
+
+  }
+
+    
+
+  startEditRestaurant(): void {
+
+    this.isEditingRestaurant = true;    if (!currentUser || !currentUser.restaurantId) {
+
+    this.restaurantForm = { ...this.restaurant };
+
+  }      alert('Bạn không có quyền quản lý nhà hàng');  // Edit mode flags  selector: 'app-my-restaurant',  selector: 'app-restaurant-detail',
 
 
 
-  loadMenuItems(): void {  ) { }  restaurant: RestaurantDTO | null = null;  menuItems: MenuItemDTO[] = [];
+  cancelEditRestaurant(): void {      this.router.navigate(['/login']);
 
-    this.restaurantService.getMenuItemsByRestaurantId(this.restaurantId)
+    this.isEditingRestaurant = false;
+
+    this.restaurantForm = { ...this.restaurant };      return;  isEditingRestaurant = false;
+
+  }
+
+    }
+
+  saveRestaurant(): void {
+
+    const formData = new FormData();  isEditingMenuItem = false;  templateUrl: './my-restaurant.component.html',  templateUrl: './restaurant-detail.component.html',
+
+    formData.append('restaurant', JSON.stringify({
+
+      name: this.restaurantForm.name,    this.restaurantId = currentUser.restaurantId;
+
+      address: this.restaurantForm.address,
+
+      phone: this.restaurantForm.phone,    this.loadRestaurant();  editingItem: MenuItemDTO = {} as MenuItemDTO;
+
+      description: this.restaurantForm.description
+
+    }));    this.loadMenuItems();
+
+
+
+    this.restaurantService.updateRestaurantInfo(this.restaurantId, formData)  }  styleUrl: './my-restaurant.component.css'  styleUrl: './restaurant-detail.component.css'
 
       .subscribe({
 
         next: (data) => {
 
-          this.menuItems = data;  ngOnInit(): void {  menuItems: MenuItemDTO[] = [];  restaurantId!: number;
+          this.restaurant = data;
 
-        },
+          this.isEditingRestaurant = false;  loadRestaurant(): void {  // Form data for restaurant
 
-        error: (err) => {    // Get restaurant ID from current user
+          alert('Cập nhật thông tin nhà hàng thành công!');
 
-          console.error('Error loading menu items:', err);
+        },    this.restaurantService.getRestaurantById(this.restaurantId)
 
-        }    const currentUser = this.authService.getCurrentUser();  restaurantId!: number;
+        error: (err) => {
+
+          console.error('Error updating restaurant:', err);      .subscribe({  restaurantForm: any = {};})})
+
+          alert('Lỗi khi cập nhật thông tin nhà hàng');
+
+        }        next: (data) => {
 
       });
 
-  }    
+  }          this.restaurant = data;
 
 
 
-  // Restaurant info management    if (!currentUser || !currentUser.restaurantId) {    constructor(
+  startAddMenuItem(): void {          this.restaurantForm = { ...data };
 
-  editRestaurant(): void {
+    this.isEditingMenuItem = true;
 
-    this.isEditingRestaurant = true;      alert('Bạn không có quyền quản lý nhà hàng');
+    this.editingItem = {        },  constructor(export class MyRestaurantComponent implements OnInit {export class RestaurantDetailComponent implements OnInit {
 
-    this.restaurantForm = { ...this.restaurant };
+      menuItemId: 0,
 
-  }      this.router.navigate(['/login']);  // Edit mode flags    private restaurantService: RestaurantService, 
+      name: '',        error: (err) => {
+
+      price: 0,
+
+      stock: 0,          console.error('Error loading restaurant:', err);    private restaurantService: RestaurantService,
+
+      imageUrl: '',
+
+      restaurantId: this.restaurantId          alert('Không thể tải thông tin nhà hàng');
+
+    } as MenuItemDTO;
+
+  }        }    private authService: AuthService,
 
 
 
-  cancelEditRestaurant(): void {      return;
+  startEditMenuItem(item: MenuItemDTO): void {      });
 
-    this.isEditingRestaurant = false;
+    this.isEditingMenuItem = true;
 
-    this.restaurantForm = { ...this.restaurant };    }  isEditingRestaurant = false;    private route: ActivatedRoute,
+    this.editingItem = { ...item };  }    private router: Router
 
   }
 
 
 
-  saveRestaurant(): void {
+  cancelEditMenuItem(): void {
 
-    const formData = new FormData();    this.restaurantId = currentUser.restaurantId;  isEditingMenuItem = false;    private cartService : CartService) { }
+    this.isEditingMenuItem = false;  loadMenuItems(): void {  ) { }  restaurant: RestaurantDTO | null = null;  menuItems: MenuItemDTO[] = [];
 
-    formData.append('restaurant', JSON.stringify({
+    this.editingItem = {} as MenuItemDTO;
 
-      name: this.restaurantForm.name,    this.loadRestaurant();
+  }    this.restaurantService.getMenuItemsByRestaurantId(this.restaurantId)
 
-      address: this.restaurantForm.address,
 
-      phone: this.restaurantForm.phone,    this.loadMenuItems();  editingItem: MenuItemDTO = {} as MenuItemDTO;
+
+  saveMenuItem(): void {      .subscribe({
+
+    if (this.editingItem.menuItemId === 0) {
+
+      this.restaurantService.addNewMenuItem(this.editingItem)        next: (data) => {
+
+        .subscribe({
+
+          next: (data) => {          this.menuItems = data;  ngOnInit(): void {  menuItems: MenuItemDTO[] = [];  restaurantId!: number;
+
+            this.menuItems.push(data);
+
+            this.isEditingMenuItem = false;        },
+
+            this.editingItem = {} as MenuItemDTO;
+
+            alert('Thêm món ăn mới thành công!');        error: (err) => {    // Get restaurant ID from current user
+
+          },
+
+          error: (err) => {          console.error('Error loading menu items:', err);
+
+            console.error('Error adding menu item:', err);
+
+            alert('Lỗi khi thêm món ăn');        }    const currentUser = this.authService.getCurrentUser();  restaurantId!: number;
+
+          }
+
+        });      });
+
+    } else {
+
+      this.restaurantService.updateExistingMenuItem(this.editingItem.menuItemId!, this.editingItem)  }    
+
+        .subscribe({
+
+          next: (data) => {
+
+            const index = this.menuItems.findIndex(item => item.menuItemId === data.menuItemId);
+
+            if (index !== -1) {  // Restaurant info management    if (!currentUser || !currentUser.restaurantId) {    constructor(
+
+              this.menuItems[index] = data;
+
+            }  editRestaurant(): void {
+
+            this.isEditingMenuItem = false;
+
+            this.editingItem = {} as MenuItemDTO;    this.isEditingRestaurant = true;      alert('Bạn không có quyền quản lý nhà hàng');
+
+            alert('Cập nhật món ăn thành công!');
+
+          },    this.restaurantForm = { ...this.restaurant };
+
+          error: (err) => {
+
+            console.error('Error updating menu item:', err);  }      this.router.navigate(['/login']);  // Edit mode flags    private restaurantService: RestaurantService, 
+
+            alert('Lỗi khi cập nhật món ăn');
+
+          }
+
+        });
+
+    }  cancelEditRestaurant(): void {      return;
+
+  }
+
+    this.isEditingRestaurant = false;
+
+  deleteMenuItem(itemId: number): void {
+
+    if (!confirm('Bạn có chắc chắn muốn xóa món ăn này?')) {    this.restaurantForm = { ...this.restaurant };    }  isEditingRestaurant = false;    private route: ActivatedRoute,
+
+      return;
+
+    }  }
+
+
+
+    this.restaurantService.deleteExistingMenuItem(itemId)
+
+      .subscribe({
+
+        next: () => {  saveRestaurant(): void {
+
+          this.menuItems = this.menuItems.filter(item => item.menuItemId !== itemId);
+
+          alert('Xóa món ăn thành công!');    const formData = new FormData();    this.restaurantId = currentUser.restaurantId;  isEditingMenuItem = false;    private cartService : CartService) { }
+
+        },
+
+        error: (err) => {    formData.append('restaurant', JSON.stringify({
+
+          console.error('Error deleting menu item:', err);
+
+          alert('Lỗi khi xóa món ăn');      name: this.restaurantForm.name,    this.loadRestaurant();
+
+        }
+
+      });      address: this.restaurantForm.address,
+
+  }
+
+}      phone: this.restaurantForm.phone,    this.loadMenuItems();  editingItem: MenuItemDTO = {} as MenuItemDTO;
+
 
       description: this.restaurantForm.description
 
