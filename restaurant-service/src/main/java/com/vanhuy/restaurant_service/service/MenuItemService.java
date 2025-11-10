@@ -70,8 +70,10 @@ public class MenuItemService {
     }
 
     private OrderItemDTO toDTO(MenuItem menuItem) {
+        // Using relative URL for frontend to call via same origin (API Gateway/Ingress)
+        // Old: baseUrl + "/api/v1/menu-items/images/" + fileName (requires correct APP_BASE_URL env)
         String imageUrl = Optional.ofNullable(menuItem.getImageUrl())
-                .map(fileName -> baseUrl + "/api/v1/menu-items/images/" + fileName)
+                .map(fileName -> "/api/v1/menu-items/images/" + fileName)
                 .orElse(null);
         return new OrderItemDTO(
                 menuItem.getItemId(),

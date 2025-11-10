@@ -68,8 +68,10 @@ public class RestaurantService {
                 .map(this::toDTO);
     }
     private RestaurantDTO toDTO(Restaurant restaurant) {
+        // Using relative URL for frontend to call via same origin (API Gateway/Ingress)
+        // Old: baseUrl + "/api/v1/restaurants/images/" + fileName (requires correct APP_BASE_URL env)
         String imageUrl = Optional.ofNullable(restaurant.getImage())
-                .map(fileName -> baseUrl + "/api/v1/restaurants/images/" + fileName)
+                .map(fileName -> "/api/v1/restaurants/images/" + fileName)
                 .orElse(null);
         return new RestaurantDTO(
                 restaurant.getRestaurantId(),
