@@ -83,23 +83,23 @@ CREATE TABLE menu_items (
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 INSERT INTO restaurants (address, image, name) VALUES
-('123 Lê Văn Sỹ, Quận 3, TP.HCM', 'target/classes/uploads/burger_king.jpg', 'Burger King'),
-('456 Nguyễn Trãi, Quận 5, TP.HCM', 'target/classes/uploads/kfc.jpg', 'KFC'),
-('789 Trần Hưng Đạo, Quận 1, TP.HCM', 'target/classes/uploads/mcdonalds.jpg', 'McDonald\'s'),
-('101 Phan Xích Long, Phú Nhuận, TP.HCM', 'target/classes/uploads/pizza_hut.jpg', 'Pizza Hut'),
-('202 Điện Biên Phủ, Bình Thạnh, TP.HCM', 'target/classes/uploads/dominos.jpg', 'Domino\'s Pizza'),
-('303 Nguyễn Thị Minh Khai, Quận 1, TP.HCM', 'target/classes/uploads/lotteria.jpg', 'Lotteria'),
+('123 Lê Văn Sỹ, Quận 3, TP.HCM', 'target/classes/uploads/burger_king.png', 'Burger King'),
+('456 Nguyễn Trãi, Quận 5, TP.HCM', 'target/classes/uploads/kfc.jpeg', 'KFC'),
+('789 Trần Hưng Đạo, Quận 1, TP.HCM', 'target/classes/uploads/mcdonald.jpg', 'McDonald''s'),
+('101 Phan Xích Long, Phú Nhuận, TP.HCM', 'target/classes/uploads/pizza_hut.png', 'Pizza Hut'),
+('202 Điện Biên Phủ, Bình Thạnh, TP.HCM', 'target/classes/uploads/domino.png', 'Domino''s Pizza'),
+('303 Nguyễn Thị Minh Khai, Quận 1, TP.HCM', 'target/classes/uploads/lotteria.png', 'Lotteria'),
 ('404 Cách Mạng Tháng 8, Quận 10, TP.HCM', 'target/classes/uploads/jollibee.jpg', 'Jollibee'),
-('505 Võ Văn Tần, Quận 3, TP.HCM', 'target/classes/uploads/subway.jpg', 'Subway'),
+('505 Võ Văn Tần, Quận 3, TP.HCM', 'target/classes/uploads/subway.png', 'Subway'),
 ('606 Nguyễn Đình Chiểu, Quận 3, TP.HCM', 'target/classes/uploads/tocotoco.jpg', 'TocoToco'),
-('707 Lý Chính Thắng, Quận 3, TP.HCM', 'target/classes/uploads/highlands.jpg', 'Highlands Coffee');
+('707 Lý Chính Thắng, Quận 3, TP.HCM', 'target/classes/uploads/highland.png', 'Highlands Coffee');
 INSERT INTO menu_items (image_url, name, price, stock, restaurant_id) VALUES
 ('target/classes/uploads/burger_beef_cheese.jpg', 'Burger bò phô mai', 65000, 50, 1),
 ('target/classes/uploads/burger_spicy_chicken.jpg', 'Burger gà cay', 60000, 40, 4),
 ('target/classes/uploads/burger_veggie.jpg', 'Burger chay', 55000, 30, 1),
-('target/classes/uploads/french_fries.jpg', 'Khoai tây chiên', 30000, 100, 1),
+('target/classes/uploads/french_fries.jpeg', 'Khoai tây chiên', 30000, 100, 1),
 ('target/classes/uploads/fried_chicken_1.jpg', 'Gà rán phần 1 miếng', 35000, 80, 2),
-('target/classes/uploads/fried_chicken_2.jpg', 'Gà rán phần 2 miếng', 65000, 60, 5),
+('target/classes/uploads/fried_chicken_2.png', 'Gà rán phần 2 miếng', 65000, 60, 5),
 ('target/classes/uploads/hotdog_classic.jpg', 'Hotdog truyền thống', 40000, 70, 1),
 ('target/classes/uploads/hotdog_cheese.jpg', 'Hotdog phô mai', 45000, 60, 1),
 ('target/classes/uploads/pizza_cheese.jpg', 'Pizza phô mai', 90000, 40, 6),
