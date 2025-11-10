@@ -1,4 +1,4 @@
-# ✅ PersistentVolumeClaim (PVC)
+# PersistentVolumeClaim (PVC)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -16,10 +16,10 @@ spec:
   # storageClassName: managed-csi
 
 ---
-# ⚠️ ConfigMap is managed separately via: kubectl create configmap mysql-init-script --from-file=../mysql-init/init.sql
+# ConfigMap is managed separately via: kubectl create configmap mysql-init-script --from-file=../mysql-init/init.sql
 # This ensures init.sql stays in sync with the source file
 ---
-# ✅ Deployment
+# Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -89,7 +89,6 @@ spec:
           name: mysql-init-script
 
 ---
-# ✅ Service
 apiVersion: v1
 kind: Service
 metadata:
