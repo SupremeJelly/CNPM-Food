@@ -11,7 +11,7 @@ on:
       - main
 
 jobs:
-  # 🧪 JOB 1: Test All Backend Services
+  # JOB 1: Test All Backend Services
   test-backend:
     name: Test Backend Services
     runs-on: ubuntu-latest
@@ -63,7 +63,7 @@ jobs:
           path: ${{ matrix.service }}/target/surefire-reports/
           retention-days: 7
 
-  # 🧪 JOB 2: Test Frontend
+  # JOB 2: Test Frontend
   test-frontend:
     name: Test Frontend
     runs-on: ubuntu-latest
@@ -112,7 +112,7 @@ jobs:
           path: frontend/coverage/
           retention-days: 7
 
-  # 🏗️ JOB 3: Build Backend Services (runs after tests pass)
+  # JOB 3: Build Backend Services
   build-backend:
     name: Build Backend Services
     needs: test-backend
@@ -160,7 +160,7 @@ jobs:
           path: ${{ matrix.service }}/target/*.jar
           retention-days: 7
 
-  # 🏗️ JOB 4: Build Frontend (runs after frontend tests pass)
+  # JOB 4: Build Frontend (runs after frontend tests pass)
   build-frontend:
     name: Build Frontend
     needs: test-frontend
@@ -194,7 +194,7 @@ jobs:
           path: frontend/dist/
           retention-days: 7
 
-  # 🔍 JOB 5: Code Quality & Security Checks
+  # JOB 5: Code Quality & Security Checks
   code-quality:
     name: Code Quality Analysis
     runs-on: ubuntu-latest
@@ -226,7 +226,7 @@ jobs:
           npm audit --production || echo "npm audit completed"
         continue-on-error: true
 
-  # 📊 JOB 6: Integration Test Summary
+  # JOB 6: Integration Test Summary
   test-summary:
     name: Test Summary Report
     runs-on: ubuntu-latest
@@ -241,20 +241,20 @@ jobs:
 
       - name: Generate Summary
         run: |
-          echo "## 🧪 Test & Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Test & Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ✅ Completed Jobs:" >> $GITHUB_STEP_SUMMARY
+          echo "### Completed Jobs:" >> $GITHUB_STEP_SUMMARY
           echo "- Backend Tests: ${{ needs.test-backend.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Frontend Tests: ${{ needs.test-frontend.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Backend Build: ${{ needs.build-backend.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Frontend Build: ${{ needs.build-frontend.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Artifacts Generated:" >> $GITHUB_STEP_SUMMARY
-          echo "- Backend JARs: ✅" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend Dist: ✅" >> $GITHUB_STEP_SUMMARY
-          echo "- Test Reports: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts Generated:" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend JARs: " >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend Dist: " >> $GITHUB_STEP_SUMMARY
+          echo "- Test Reports: " >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 Ready for Deployment!" >> $GITHUB_STEP_SUMMARY
+          echo "###  Ready for Deployment!" >> $GITHUB_STEP_SUMMARY
 
       - name: Comment PR with Results
         if: github.event_name == 'pull_request'
@@ -265,11 +265,11 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '## 🧪 CI Pipeline Results\n\n' +
-                    '✅ All tests and builds completed!\n\n' +
+              body: '##  CI Pipeline Results\n\n' +
+                    ' All tests and builds completed!\n\n' +
                     '**Backend Tests:** ${{ needs.test-backend.result }}\n' +
                     '**Frontend Tests:** ${{ needs.test-frontend.result }}\n' +
                     '**Backend Build:** ${{ needs.build-backend.result }}\n' +
                     '**Frontend Build:** ${{ needs.build-frontend.result }}\n\n' +
-                    'Ready to merge! 🚀'
+                    'Ready to merge! '
             })

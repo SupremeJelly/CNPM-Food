@@ -29,7 +29,7 @@ public class PaymentController {
     @Autowired
     private PaymentService service;
     
-    // ✅ Inject PaymentService qua constructor
+    // Inject PaymentService qua constructor
     public PaymentController(PaymentService paymentService) {
         this.service = paymentService;
     }
