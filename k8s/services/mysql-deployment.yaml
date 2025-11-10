@@ -48,6 +48,10 @@ spec:
           value: "appuser"
         - name: MYSQL_PASSWORD
           value: "apassword"
+        - name: MYSQL_CHARSET
+          value: "utf8mb4"
+        - name: MYSQL_COLLATION
+          value: "utf8mb4_unicode_ci"
         volumeMounts:
         - name: mysql-storage
           mountPath: /var/lib/mysql
