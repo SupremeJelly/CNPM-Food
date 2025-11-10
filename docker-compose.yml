@@ -6,6 +6,7 @@ services:
       MYSQL_ROOT_PASSWORD: rootpass
       MYSQL_USER: appuser
       MYSQL_PASSWORD: apassword
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     ports:
       - "3306:3306"
     volumes:
@@ -22,25 +23,25 @@ services:
       - cnpm-net
 
   payment-service:
-      build:
-        context: ./payment-service
-        dockerfile: Dockerfile
-      container_name: payment-service
-      environment:
-        SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/payment_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-        SPRING_DATASOURCE_USERNAME: "paymentservice"
-        SPRING_DATASOURCE_PASSWORD: "pay"
-        # Service URLs for Feign Clients
-        ORDER_SERVICE_URL: "http://order-service:8083"
-        RESTAURANT_SERVICE_URL: "http://restaurant-service:8082"
-      ports:
-        - "8085:8085"
-      depends_on:
-        mysql-db:
-          condition: service_healthy
-      restart: unless-stopped
-      networks:
-        - cnpm-net
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/payment_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8"
+      SPRING_DATASOURCE_USERNAME: "paymentservice"
+      SPRING_DATASOURCE_PASSWORD: "pay"
+      # Service URLs for Feign Clients
+      ORDER_SERVICE_URL: "http://order-service:8083"
+      RESTAURANT_SERVICE_URL: "http://restaurant-service:8082"
+    ports:
+      - "8085:8085"
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cnpm-net
 
   order-service:
     build:
@@ -48,7 +49,7 @@ services:
       dockerfile: Dockerfile
     container_name: order-service
     environment:
-      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/order_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/order_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8"
       SPRING_DATASOURCE_USERNAME: "orderservice"
       SPRING_DATASOURCE_PASSWORD: "order"
       # Service URLs for Feign Clients
@@ -70,7 +71,7 @@ services:
       dockerfile: Dockerfile
     container_name: restaurant-service
     environment:
-      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/restaurant_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/restaurant_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8"
       SPRING_DATASOURCE_USERNAME: "restaurantservice"
       SPRING_DATASOURCE_PASSWORD: "res"
     ports:
@@ -88,7 +89,7 @@ services:
       dockerfile: Dockerfile
     container_name: user-service
     environment:
-      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/user_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-db:3306/user_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8"
       SPRING_DATASOURCE_USERNAME: "userservice"
       SPRING_DATASOURCE_PASSWORD: "user"
       # JWT Configuration - QUAN TRỌNG!

@@ -24,6 +24,9 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
+# Ensure nginx sends UTF-8 charset in Content-Type header
+RUN sed -i "s/server {/server {\n    charset utf-8;/" /etc/nginx/conf.d/default.conf || true
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
