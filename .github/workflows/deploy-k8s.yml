@@ -28,9 +28,14 @@ jobs:
 
       - name: Detect changed paths
         id: changes
-        shell: pwsh
+        shell: powershell
         run: |
-          $diff = git diff --name-only HEAD~1 HEAD
+          try {
+            $diff = git diff --name-only HEAD~1 HEAD 2>$null
+            if (-not $diff) { $diff = (git diff-tree --no-commit-id --name-only -r HEAD) }
+          } catch {
+            $diff = (git diff-tree --no-commit-id --name-only -r HEAD)
+          }
           if (-not $diff) { $diff = "" }
           Write-Host "Changed files:\n$diff"
           echo "CHANGED_PATHS=$diff" >> $env:GITHUB_ENV
@@ -47,7 +52,7 @@ jobs:
 
       # Build & push images (tag latest + commit SHA)
       - name: Build and Push API Gateway
-        if: contains(env.CHANGED_PATHS, 'api-gateway/')
+        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'api-gateway/')
         uses: docker/build-push-action@v5
         with:
           context: ./api-gateway
@@ -57,7 +62,7 @@ jobs:
             onlykohi/cnpm-api-gateway:${{ github.sha }}
 
       - name: Build and Push user-service
-        if: contains(env.CHANGED_PATHS, 'user-service/')
+        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'user-service/')
         uses: docker/build-push-action@v5
         with:
           context: ./user-service
@@ -67,7 +72,7 @@ jobs:
             onlykohi/cnpm-user-service:${{ github.sha }}
 
       - name: Build and Push order-service
-        if: contains(env.CHANGED_PATHS, 'order-service/')
+        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'order-service/')
         uses: docker/build-push-action@v5
         with:
           context: ./order-service
@@ -77,7 +82,7 @@ jobs:
             onlykohi/cnpm-order-service:${{ github.sha }}
 
       - name: Build and Push restaurant-service
-        if: contains(env.CHANGED_PATHS, 'restaurant-service/')
+        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'restaurant-service/')
         uses: docker/build-push-action@v5
         with:
           context: ./restaurant-service
@@ -87,7 +92,7 @@ jobs:
             onlykohi/cnpm-restaurant-service:${{ github.sha }}
 
       - name: Build and Push payment-service
-        if: contains(env.CHANGED_PATHS, 'payment-service/')
+        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'payment-service/')
         uses: docker/build-push-action@v5
         with:
           context: ./payment-service
@@ -97,7 +102,7 @@ jobs:
             onlykohi/cnpm-payment-service:${{ github.sha }}
 
       - name: Build and Push frontend
-        if: contains(env.CHANGED_PATHS, 'frontend/')
+        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'frontend/')
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
@@ -111,7 +116,7 @@ jobs:
         uses: azure/setup-kubectl@v4
 
       - name: Configure kubeconfig
-        shell: pwsh
+        shell: powershell
         env:
           KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
         run: |
@@ -127,7 +132,7 @@ jobs:
           kubectl cluster-info
 
       - name: Prepare MySQL Deployment
-        shell: pwsh
+        shell: powershell
         run: |
           # Namespaces
           kubectl create namespace $env:NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
@@ -147,7 +152,7 @@ jobs:
           }
 
       - name: Deploy Microservices
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "Applying deployments..."
           $files = @(
@@ -171,7 +176,7 @@ jobs:
           if ($env:CHANGED_PATHS.Contains('frontend/')) { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE }
 
       - name: Wait for deployments to be ready
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "Waiting for changed services to be ready..."
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
@@ -196,13 +201,13 @@ jobs:
           }
 
       - name: Apply Ingress
-        shell: pwsh
+        shell: powershell
         run: |
           if (Test-Path "k8s/ingress.yaml") { kubectl apply -f k8s/ingress.yaml }
         continue-on-error: true
 
       - name: Deployment Summary
-        shell: pwsh
+        shell: powershell
         run: |
           $summary = @()
           $summary += "## Deployment Complete"
