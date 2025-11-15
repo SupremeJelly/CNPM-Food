@@ -55,8 +55,6 @@ jobs:
           tags: |
             onlykohi/cnpm-api-gateway:latest
             onlykohi/cnpm-api-gateway:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Build and Push user-service
         if: contains(env.CHANGED_PATHS, 'user-service/')
@@ -67,8 +65,6 @@ jobs:
           tags: |
             onlykohi/cnpm-user-service:latest
             onlykohi/cnpm-user-service:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Build and Push order-service
         if: contains(env.CHANGED_PATHS, 'order-service/')
@@ -79,8 +75,6 @@ jobs:
           tags: |
             onlykohi/cnpm-order-service:latest
             onlykohi/cnpm-order-service:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Build and Push restaurant-service
         if: contains(env.CHANGED_PATHS, 'restaurant-service/')
@@ -91,8 +85,6 @@ jobs:
           tags: |
             onlykohi/cnpm-restaurant-service:latest
             onlykohi/cnpm-restaurant-service:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Build and Push payment-service
         if: contains(env.CHANGED_PATHS, 'payment-service/')
@@ -103,8 +95,6 @@ jobs:
           tags: |
             onlykohi/cnpm-payment-service:latest
             onlykohi/cnpm-payment-service:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Build and Push frontend
         if: contains(env.CHANGED_PATHS, 'frontend/')
@@ -115,8 +105,6 @@ jobs:
           tags: |
             onlykohi/cnpm-frontend:latest
             onlykohi/cnpm-frontend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       # Set up kubectl and configure KUBECONFIG (requires KUBE_CONFIG_DATA secret)
       - name: Set up kubectl
@@ -161,7 +149,7 @@ jobs:
       - name: Deploy Microservices
         shell: pwsh
         run: |
-          Write-Host "Cleaning old deployments..."
+          Write-Host "Applying deployments..."
           $files = @(
             "user-service-deployment.yaml",
             "restaurant-service-deployment.yaml",
@@ -171,90 +159,64 @@ jobs:
             "frontend-deployment.yaml"
           )
           foreach ($f in $files) {
-            kubectl delete -n $env:NAMESPACE -f ("k8s/services/" + $f) --ignore-not-found
-          }
-
-          Write-Host "Applying new deployments..."
-          foreach ($f in $files) {
             kubectl apply -n $env:NAMESPACE -f ("k8s/services/" + $f)
           }
 
-          Write-Host "Updating images to commit SHA for deterministic rollout..."
-          kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $env:NAMESPACE
-          kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $env:NAMESPACE
-          kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $env:NAMESPACE
-          kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $env:NAMESPACE
-          kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE
-          kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE
+          Write-Host "Updating images to commit SHA only for changed services..."
+          if ($env:CHANGED_PATHS.Contains('user-service/')) { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS.Contains('restaurant-service/')) { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS.Contains('order-service/')) { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS.Contains('payment-service/')) { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS.Contains('api-gateway/')) { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS.Contains('frontend/')) { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE }
 
       - name: Wait for deployments to be ready
         shell: pwsh
         run: |
-          Write-Host "Waiting for services to be ready (this may take a few minutes)..."
+          Write-Host "Waiting for changed services to be ready..."
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
           $failed = @()
-          $deployments = @("user-service","restaurant-service","order-service","payment-service","api-gateway","frontend")
-          foreach ($d in $deployments) {
-            kubectl rollout status deployment/$d -n $env:NAMESPACE --timeout=7m
+          $checkDeploys = @()
+          if ($env:CHANGED_PATHS.Contains('user-service/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'user-service' }
+          if ($env:CHANGED_PATHS.Contains('restaurant-service/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'restaurant-service' }
+          if ($env:CHANGED_PATHS.Contains('order-service/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'order-service' }
+          if ($env:CHANGED_PATHS.Contains('payment-service/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'payment-service' }
+          if ($env:CHANGED_PATHS.Contains('api-gateway/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'api-gateway' }
+          if ($env:CHANGED_PATHS.Contains('frontend/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'frontend' }
+          if ($checkDeploys.Count -eq 0) { Write-Host 'No deployments changed, skipping rollout check.'; return }
+          foreach ($d in $checkDeploys) {
+            kubectl rollout status deployment/$d -n $env:NAMESPACE --timeout=5m
             if ($LASTEXITCODE -ne 0) {
-              "Deployment $d failed to roll out" | Tee-Object -FilePath artifacts/rollout_failures.txt -Append | Out-Null
+              "Deployment $d failed" | Tee-Object -FilePath artifacts/rollout_failures.txt -Append | Out-Null
               $failed += $d
-              kubectl describe deployment/$d -n $env:NAMESPACE | Out-File -FilePath ("artifacts/" + $d + "-describe.txt") -Encoding utf8
-              kubectl get pods -l app=$d -n $env:NAMESPACE -o wide | Out-File -FilePath ("artifacts/" + $d + "-pods.txt") -Encoding utf8
-              $pods = (kubectl get pods -l app=$d -n $env:NAMESPACE -o jsonpath='{.items[*].metadata.name}').Split(' ',[System.StringSplitOptions]::RemoveEmptyEntries)
-              foreach ($p in $pods) {
-                kubectl logs $p -n $env:NAMESPACE --tail=300 | Out-File -FilePath ("artifacts/" + $d + "-pod-" + $p + "-logs.txt") -Encoding utf8
-              }
             }
           }
           if ($failed.Count -gt 0) {
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("One or more deployments failed: " + ($failed -join ' '))
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("Failed: " + ($failed -join ' '))
           }
 
-      - name: Verify MySQL schema/users (debug)
-        shell: pwsh
-        run: |
-          echo "Checking MySQL users and databases..."
-          kubectl exec deploy/mysql -n $env:NAMESPACE -- mysql -uroot -prootpass -e "SHOW DATABASES; SELECT user,host FROM mysql.user;" | Out-File -FilePath artifacts/mysql-users.txt -Encoding utf8
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "MySQL check complete"
-
-      # Monitoring stack deploy removed for performance; re-add if required.
-
-      - name: Apply Ingress (optional)
+      - name: Apply Ingress
         shell: pwsh
         run: |
           if (Test-Path "k8s/ingress.yaml") { kubectl apply -f k8s/ingress.yaml }
         continue-on-error: true
 
-      - name: Verify & Summarize
+      - name: Deployment Summary
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
-          kubectl get nodes -o wide | Out-File artifacts/nodes.txt -Encoding utf8
-          kubectl get pods -n $env:NAMESPACE -o wide | Out-File artifacts/pods.txt -Encoding utf8
-          kubectl get svc -n $env:NAMESPACE -o wide | Out-File artifacts/services.txt -Encoding utf8
-          kubectl get deployments -n $env:NAMESPACE -o wide | Out-File artifacts/deployments.txt -Encoding utf8
-          kubectl get events -n $env:NAMESPACE --sort-by=.lastTimestamp | Out-File artifacts/events.txt -Encoding utf8
-          kubectl describe pods -n $env:NAMESPACE | Out-File artifacts/describe_pods.txt -Encoding utf8
-          kubectl logs -l app=api-gateway -n $env:NAMESPACE --tail=200 | Out-File artifacts/api-gateway-logs.txt -Encoding utf8
-          kubectl logs -l app=frontend -n $env:NAMESPACE --tail=200 | Out-File artifacts/frontend-logs.txt -Encoding utf8
-
           $summary = @()
-          $summary += "## Deployment Summary"
+          $summary += "## Deployment Complete"
           $summary += ""
-          $summary += "### Services ($env:NAMESPACE)"
-          $summary += (kubectl get svc -n $env:NAMESPACE)
-          $summary += ""
-          $summary += "### Pods ($env:NAMESPACE)"
+          $summary += "### Pods"
           $summary += (kubectl get pods -n $env:NAMESPACE)
           $summary += ""
-          $summary += "### Failed Rollouts"
-          if (Test-Path artifacts/rollout_failures.txt) { $summary += (Get-Content artifacts/rollout_failures.txt) } else { $summary += "None" }
+          if (Test-Path artifacts/rollout_failures.txt) { $summary += "### Failed"; $summary += (Get-Content artifacts/rollout_failures.txt) }
           ($summary -join "`n") | Add-Content $env:GITHUB_STEP_SUMMARY
 
       - name: Upload diagnostics artifact (only on failures)
-        if: always() && exists('artifacts/rollout_failures.txt')
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: k8s-diagnostics
           path: artifacts
+          if-no-files-found: ignore
