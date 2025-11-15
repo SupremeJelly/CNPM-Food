@@ -38,7 +38,9 @@ jobs:
           }
           if (-not $diff) { $diff = "" }
           Write-Host "Changed files:\n$diff"
+          # Export for later steps as both an env var and a step output
           echo "CHANGED_PATHS=$diff" >> $env:GITHUB_ENV
+          Add-Content -Path $env:GITHUB_OUTPUT -Value ("changed=$diff")
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -50,7 +52,7 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and Push user-service
-        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'user-service/')
+        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'user-service/') }}
         uses: docker/build-push-action@v5
         with:
           context: ./user-service
@@ -60,7 +62,7 @@ jobs:
             onlykohi/cnpm-user-service:${{ github.sha }}
 
       - name: Build and Push order-service
-        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'order-service/')
+        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'order-service/') }}
         uses: docker/build-push-action@v5
         with:
           context: ./order-service
@@ -70,7 +72,7 @@ jobs:
             onlykohi/cnpm-order-service:${{ github.sha }}
 
       - name: Build and Push restaurant-service
-        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'restaurant-service/')
+        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'restaurant-service/') }}
         uses: docker/build-push-action@v5
         with:
           context: ./restaurant-service
@@ -80,7 +82,7 @@ jobs:
             onlykohi/cnpm-restaurant-service:${{ github.sha }}
 
       - name: Build and Push payment-service
-        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'payment-service/')
+        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'payment-service/') }}
         uses: docker/build-push-action@v5
         with:
           context: ./payment-service
@@ -92,7 +94,7 @@ jobs:
 
       # Build & push images (tag latest + commit SHA)
       - name: Build and Push API Gateway
-        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'api-gateway/')
+        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'api-gateway/') }}
         uses: docker/build-push-action@v5
         with:
           context: ./api-gateway
@@ -102,7 +104,7 @@ jobs:
             onlykohi/cnpm-api-gateway:${{ github.sha }}
 
       - name: Build and Push frontend
-        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'frontend/')
+        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'frontend/') }}
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
@@ -133,6 +135,8 @@ jobs:
 
       - name: Prepare MySQL Deployment
         shell: powershell
+        env:
+          CHANGED_PATHS: ${{ steps.changes.outputs.changed }}
         run: |
           # Namespaces
           kubectl create namespace $env:NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
@@ -151,50 +155,58 @@ jobs:
             kubectl wait --for=condition=ready pod -l app=mysql -n $env:NAMESPACE --timeout=300s
           }
 
-      - name: Deploy Microservices
+      - name: Deploy Microservices (backends first, gateway last)
         shell: powershell
+        env:
+          CHANGED_PATHS: ${{ steps.changes.outputs.changed }}
         run: |
-          Write-Host "Applying deployments (API Gateway will be applied last)..."
-          $files = @(
+          Write-Host "Applying backend deployments first..."
+          $backendFiles = @(
             "user-service-deployment.yaml",
             "restaurant-service-deployment.yaml",
             "order-service-deployment.yaml",
-            "payment-service-deployment.yaml",
-            "frontend-deployment.yaml"
+            "payment-service-deployment.yaml"
           )
-          foreach ($f in $files) {
-            # derive service name from filename
-            $svc = $f -replace '-deployment.yaml',''
-            Write-Host "Deleting existing pods for $svc (if any) to avoid conflicts"
-            kubectl delete pod -l app=$svc -n $env:NAMESPACE --ignore-not-found || Write-Host "No pods to delete for $svc"
-            kubectl apply -n $env:NAMESPACE -f ("k8s/services/" + $f)
-            if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains($svc + '/')) {
-              Write-Host "Updating image for $svc"
-              kubectl set image deployment/$svc $svc=onlykohi/cnpm-$svc:${{ github.sha }} -n $env:NAMESPACE
-            }
+          foreach ($f in $backendFiles) {
+            $full = "k8s/services/" + $f
+            Write-Host "Applying $full"
+            kubectl apply -n $env:NAMESPACE -f $full
           }
 
-          # Apply API Gateway last to ensure backend services are available before gateway starts
-          Write-Host "Deleting existing pods for api-gateway (if any) and applying API Gateway last"
-          kubectl delete pod -l app=api-gateway -n $env:NAMESPACE --ignore-not-found || Write-Host "No pods to delete for api-gateway"
+          Write-Host "Apply API gateway and frontend (last)..."
           kubectl apply -n $env:NAMESPACE -f k8s/services/api-gateway-deployment.yaml
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('api-gateway/')) {
-            kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE
-          }
+          kubectl apply -n $env:NAMESPACE -f k8s/services/frontend-deployment.yaml
+
+          Write-Host "Delete pods for changed services before updating images (non-destructive)"
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('user-service/')) { kubectl delete pod -l app=user-service -n $env:NAMESPACE --ignore-not-found }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('restaurant-service/')) { kubectl delete pod -l app=restaurant-service -n $env:NAMESPACE --ignore-not-found }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('order-service/')) { kubectl delete pod -l app=order-service -n $env:NAMESPACE --ignore-not-found }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('payment-service/')) { kubectl delete pod -l app=payment-service -n $env:NAMESPACE --ignore-not-found }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('api-gateway/')) { kubectl delete pod -l app=api-gateway -n $env:NAMESPACE --ignore-not-found }
+
+          Write-Host "Updating images to commit SHA only for changed services..."
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('user-service/')) { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('restaurant-service/')) { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('order-service/')) { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('payment-service/')) { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('api-gateway/')) { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE }
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('frontend/')) { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE }
 
       - name: Wait for deployments to be ready
         shell: powershell
+        env:
+          CHANGED_PATHS: ${{ steps.changes.outputs.changed }}
         run: |
           Write-Host "Waiting for changed services to be ready..."
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
           $failed = @()
           $checkDeploys = @()
-          if ($env:CHANGED_PATHS.Contains('user-service/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'user-service' }
-          if ($env:CHANGED_PATHS.Contains('restaurant-service/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'restaurant-service' }
-          if ($env:CHANGED_PATHS.Contains('order-service/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'order-service' }
-          if ($env:CHANGED_PATHS.Contains('payment-service/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'payment-service' }
-          if ($env:CHANGED_PATHS.Contains('api-gateway/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'api-gateway' }
-          if ($env:CHANGED_PATHS.Contains('frontend/') -or $env:CHANGED_PATHS.Contains('k8s/')) { $checkDeploys += 'frontend' }
+          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('user-service/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'user-service' }
+          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('restaurant-service/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'restaurant-service' }
+          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('order-service/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'order-service' }
+          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('payment-service/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'payment-service' }
+          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('api-gateway/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'api-gateway' }
+          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('frontend/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'frontend' }
           if ($checkDeploys.Count -eq 0) { Write-Host 'No deployments changed, skipping rollout check.'; return }
           foreach ($d in $checkDeploys) {
             kubectl rollout status deployment/$d -n $env:NAMESPACE --timeout=5m
