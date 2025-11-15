@@ -40,7 +40,6 @@ jobs:
           Write-Host "Changed files:\n$diff"
           echo "CHANGED_PATHS=$diff" >> $env:GITHUB_ENV
 
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -49,17 +48,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
-
-      # Build & push images (tag latest + commit SHA)
-      - name: Build and Push API Gateway
-        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'api-gateway/')
-        uses: docker/build-push-action@v5
-        with:
-          context: ./api-gateway
-          push: true
-          tags: |
-            onlykohi/cnpm-api-gateway:latest
-            onlykohi/cnpm-api-gateway:${{ github.sha }}
 
       - name: Build and Push user-service
         if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'user-service/')
@@ -100,6 +88,18 @@ jobs:
           tags: |
             onlykohi/cnpm-payment-service:latest
             onlykohi/cnpm-payment-service:${{ github.sha }}
+
+
+      # Build & push images (tag latest + commit SHA)
+      - name: Build and Push API Gateway
+        if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'api-gateway/')
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api-gateway
+          push: true
+          tags: |
+            onlykohi/cnpm-api-gateway:latest
+            onlykohi/cnpm-api-gateway:${{ github.sha }}
 
       - name: Build and Push frontend
         if: env.CHANGED_PATHS && contains(env.CHANGED_PATHS, 'frontend/')
@@ -154,26 +154,33 @@ jobs:
       - name: Deploy Microservices
         shell: powershell
         run: |
-          Write-Host "Applying deployments..."
+          Write-Host "Applying deployments (API Gateway will be applied last)..."
           $files = @(
             "user-service-deployment.yaml",
             "restaurant-service-deployment.yaml",
             "order-service-deployment.yaml",
             "payment-service-deployment.yaml",
-            "api-gateway-deployment.yaml",
             "frontend-deployment.yaml"
           )
           foreach ($f in $files) {
+            # derive service name from filename
+            $svc = $f -replace '-deployment.yaml',''
+            Write-Host "Deleting existing pods for $svc (if any) to avoid conflicts"
+            kubectl delete pod -l app=$svc -n $env:NAMESPACE --ignore-not-found || Write-Host "No pods to delete for $svc"
             kubectl apply -n $env:NAMESPACE -f ("k8s/services/" + $f)
+            if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains($svc + '/')) {
+              Write-Host "Updating image for $svc"
+              kubectl set image deployment/$svc $svc=onlykohi/cnpm-$svc:${{ github.sha }} -n $env:NAMESPACE
+            }
           }
 
-          Write-Host "Updating images to commit SHA only for changed services..."
-          if ($env:CHANGED_PATHS.Contains('user-service/')) { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS.Contains('restaurant-service/')) { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS.Contains('order-service/')) { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS.Contains('payment-service/')) { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS.Contains('api-gateway/')) { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS.Contains('frontend/')) { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE }
+          # Apply API Gateway last to ensure backend services are available before gateway starts
+          Write-Host "Deleting existing pods for api-gateway (if any) and applying API Gateway last"
+          kubectl delete pod -l app=api-gateway -n $env:NAMESPACE --ignore-not-found || Write-Host "No pods to delete for api-gateway"
+          kubectl apply -n $env:NAMESPACE -f k8s/services/api-gateway-deployment.yaml
+          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('api-gateway/')) {
+            kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE
+          }
 
       - name: Wait for deployments to be ready
         shell: powershell
