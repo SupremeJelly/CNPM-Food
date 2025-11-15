@@ -1,152 +1,239 @@
-name: CI/CD Pipeline - Docker Desktop K8s
+name: CI/CD Pipeline - Kubernetes
 
 on:
   push:
-    branches:
-      - main
-      - src
-  workflow_dispatch:  # Cho phép trigger manual
+    branches: [ main, src ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-k8s-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: docker.io
+  NAMESPACE: cnpm-food
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted  # Chạy trên máy local với Docker Desktop
-    # runs-on: ubuntu-latest  # Uncomment nếu deploy lên cloud
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Đăng nhập vào DockerHub
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      # Build & push image cho từng service
+      # Build & push images (tag latest + commit SHA)
       - name: Build and Push API Gateway
         uses: docker/build-push-action@v5
         with:
           context: ./api-gateway
           push: true
-          tags: onlykohi/cnpm-api-gateway:latest
+          tags: |
+            onlykohi/cnpm-api-gateway:latest
+            onlykohi/cnpm-api-gateway:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # Có thể thêm các service khác tương tự
       - name: Build and Push user-service
         uses: docker/build-push-action@v5
         with:
           context: ./user-service
           push: true
-          tags: onlykohi/cnpm-user-service:latest
+          tags: |
+            onlykohi/cnpm-user-service:latest
+            onlykohi/cnpm-user-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and Push order-service
         uses: docker/build-push-action@v5
         with:
           context: ./order-service
           push: true
-          tags: onlykohi/cnpm-order-service:latest
+          tags: |
+            onlykohi/cnpm-order-service:latest
+            onlykohi/cnpm-order-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and Push restaurant-service
         uses: docker/build-push-action@v5
         with:
           context: ./restaurant-service
           push: true
-          tags: onlykohi/cnpm-restaurant-service:latest
+          tags: |
+            onlykohi/cnpm-restaurant-service:latest
+            onlykohi/cnpm-restaurant-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and Push payment-service
         uses: docker/build-push-action@v5
         with:
           context: ./payment-service
           push: true
-          tags: onlykohi/cnpm-payment-service:latest
+          tags: |
+            onlykohi/cnpm-payment-service:latest
+            onlykohi/cnpm-payment-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and Push frontend
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           push: true
-          tags: onlykohi/cnpm-frontend:latest
+          tags: |
+            onlykohi/cnpm-frontend:latest
+            onlykohi/cnpm-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # Verify Docker Desktop Kubernetes
-      - name: Check Kubernetes context
+      # Set up kubectl and configure KUBECONFIG (requires KUBE_CONFIG_DATA secret)
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
         run: |
-          kubectl config current-context
+          mkdir -p "$HOME/.kube"
+          echo "$KUBE_CONFIG_DATA" | base64 -d > "$HOME/.kube/config"
+          kubectl version --client=true
+          kubectl config current-context || true
           kubectl cluster-info
-          kubectl get nodes
 
-      # Deploy to Docker Desktop Kubernetes
       - name: Prepare MySQL Deployment
         run: |
-          # Create namespace if not exists
-          kubectl create namespace cnpm-food --dry-run=client -o yaml | kubectl apply -f -
+          # Namespaces
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
-          # Create ConfigMap from init.sql BEFORE deploying MySQL
-          kubectl create configmap mysql-init-script -n cnpm-food --from-file=init.sql=mysql-init/init.sql --dry-run=client -o yaml | kubectl apply -f -
+          # ConfigMap for MySQL init
+          kubectl create configmap mysql-init-script -n ${{ env.NAMESPACE }} \
+            --from-file=init.sql=mysql-init/init.sql --dry-run=client -o yaml | kubectl apply -f -
 
-          # Clean up existing MySQL if exists
-          kubectl delete deployment mysql -n cnpm-food --ignore-not-found=true
-          kubectl delete service mysql -n cnpm-food --ignore-not-found=true
-          kubectl delete pvc mysql-pvc -n cnpm-food --ignore-not-found=true
-          # No need to delete PV as it's managed by default storage class
-          
-          # Wait for resources to be cleaned up
+          # Clean up existing MySQL (no-fail)
+          kubectl delete deployment/mysql -n ${{ env.NAMESPACE }} --ignore-not-found
+          kubectl delete service/mysql -n ${{ env.NAMESPACE }} --ignore-not-found
+          kubectl delete pvc/mysql-pvc -n ${{ env.NAMESPACE }} --ignore-not-found
+
           echo "Waiting for old MySQL resources to be cleaned up..."
-          sleep 10
+          sleep 5
 
           # Deploy new MySQL
-          kubectl apply -f k8s/services/mysql-deployment.yaml
+          kubectl apply -n ${{ env.NAMESPACE }} -f k8s/services/mysql-deployment.yaml
           echo "Waiting for MySQL to be ready..."
-          kubectl wait --for=condition=ready pod -l app=mysql -n cnpm-food --timeout=300s; $true
+          kubectl wait --for=condition=ready pod -l app=mysql -n ${{ env.NAMESPACE }} --timeout=300s || true
 
       - name: Deploy Microservices
         run: |
-          # Clean up existing services first
-          kubectl delete -f k8s/services/user-service-deployment.yaml --ignore-not-found=true
-          kubectl delete -f k8s/services/restaurant-service-deployment.yaml --ignore-not-found=true
-          kubectl delete -f k8s/services/order-service-deployment.yaml --ignore-not-found=true
-          kubectl delete -f k8s/services/payment-service-deployment.yaml --ignore-not-found=true
-          kubectl delete -f k8s/services/api-gateway-deployment.yaml --ignore-not-found=true
-          kubectl delete -f k8s/services/frontend-deployment.yaml --ignore-not-found=true
-          
-          echo "Waiting for old services to be cleaned up..."
-          sleep 10
+          echo "Cleaning old deployments..."
+          for f in \
+            user-service-deployment.yaml \
+            restaurant-service-deployment.yaml \
+            order-service-deployment.yaml \
+            payment-service-deployment.yaml \
+            api-gateway-deployment.yaml \
+            frontend-deployment.yaml; do
+            kubectl delete -n ${{ env.NAMESPACE }} -f k8s/services/$f --ignore-not-found
+          done
 
-          # Deploy new services
-          kubectl apply -f k8s/services/user-service-deployment.yaml
-          kubectl apply -f k8s/services/restaurant-service-deployment.yaml
-          kubectl apply -f k8s/services/order-service-deployment.yaml
-          kubectl apply -f k8s/services/payment-service-deployment.yaml
-          kubectl apply -f k8s/services/api-gateway-deployment.yaml
-          kubectl apply -f k8s/services/frontend-deployment.yaml
+          echo "Applying new deployments..."
+          for f in \
+            user-service-deployment.yaml \
+            restaurant-service-deployment.yaml \
+            order-service-deployment.yaml \
+            payment-service-deployment.yaml \
+            api-gateway-deployment.yaml \
+            frontend-deployment.yaml; do
+            kubectl apply -n ${{ env.NAMESPACE }} -f k8s/services/$f
+          done
+
+          echo "Updating images to commit SHA for deterministic rollout..."
+          kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n ${{ env.NAMESPACE }} || true
+          kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n ${{ env.NAMESPACE }} || true
+          kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n ${{ env.NAMESPACE }} || true
+          kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n ${{ env.NAMESPACE }} || true
+          kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n ${{ env.NAMESPACE }} || true
+          kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n ${{ env.NAMESPACE }} || true
 
       - name: Wait for deployments to be ready
         run: |
-          echo "Waiting for services to be ready (this may take 2-3 minutes)..."
-          kubectl rollout status deployment/user-service -n cnpm-food --timeout=5m; $true
-          kubectl rollout status deployment/restaurant-service -n cnpm-food --timeout=5m; $true
-          kubectl rollout status deployment/order-service -n cnpm-food --timeout=5m; $true
-          kubectl rollout status deployment/payment-service -n cnpm-food --timeout=5m; $true
-          kubectl rollout status deployment/api-gateway -n cnpm-food --timeout=5m; $true
-          kubectl rollout status deployment/frontend -n cnpm-food --timeout=5m; $true
+          echo "Waiting for services to be ready (this may take a few minutes)..."
+          mkdir -p artifacts
+          failed=""
+          for d in user-service restaurant-service order-service payment-service api-gateway frontend; do
+            if ! kubectl rollout status deployment/$d -n ${{ env.NAMESPACE }} --timeout=7m; then
+              echo "Deployment $d failed to roll out" | tee -a artifacts/rollout_failures.txt
+              failed="$failed $d"
+              # Collect describe + logs
+              kubectl describe deployment/$d -n ${{ env.NAMESPACE }} > artifacts/${d}-describe.txt || true
+              kubectl get pods -l app=$d -n ${{ env.NAMESPACE }} -o wide > artifacts/${d}-pods.txt || true
+              for p in $(kubectl get pods -l app=$d -n ${{ env.NAMESPACE }} -o jsonpath='{.items[*].metadata.name}'); do
+                kubectl logs $p -n ${{ env.NAMESPACE }} --tail=300 > artifacts/${d}-pod-${p}-logs.txt || true
+              done
+            fi
+          done
+          if [ -n "$failed" ]; then
+            echo "One or more deployments failed: $failed" >> $GITHUB_STEP_SUMMARY
+          fi
 
-      # Deploy Monitoring (Optional)
-      - name: Deploy Monitoring Stack
+      - name: Verify MySQL schema/users (debug)
         run: |
-          kubectl apply -f k8s/monitoring/prometheus-deployment.yaml
-          kubectl apply -f k8s/monitoring/grafana-deployment.yaml
-        continue-on-error: true  # Không fail nếu monitoring có vấn đề
+          echo "Checking MySQL users and databases..."
+          kubectl exec deploy/mysql -n ${{ env.NAMESPACE }} -- mysql -uroot -prootpass -e "SHOW DATABASES; SELECT user,host FROM mysql.user;" > artifacts/mysql-users.txt || true
+          echo "MySQL check complete" >> $GITHUB_STEP_SUMMARY
 
-      # Verify deployment
-      - name: Verify Deployment
+      - name: Deploy Monitoring Stack (optional)
         run: |
-          echo "=== Pods Status ==="
-          kubectl get pods -n cnpm-food
-          echo ""
-          echo "=== Services ==="
-          kubectl get svc -n cnpm-food
-          echo ""
-          echo "=== Deployment Summary ==="
-          kubectl get deployments -n cnpm-food
-          echo ""
-          echo "=== Monitoring Pods ==="
-          kubectl get pods -n monitoring
+          kubectl apply -n monitoring -f k8s/monitoring/prometheus-deployment.yaml || true
+          kubectl apply -n monitoring -f k8s/monitoring/grafana-deployment.yaml || true
+        continue-on-error: true
+
+      - name: Apply Ingress (optional)
+        run: |
+          if [ -f k8s/ingress.yaml ]; then kubectl apply -f k8s/ingress.yaml || true; fi
+        continue-on-error: true
+
+      - name: Verify & Summarize
+        run: |
+          mkdir -p artifacts
+          kubectl get nodes -o wide > artifacts/nodes.txt
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide > artifacts/pods.txt
+          kubectl get svc -n ${{ env.NAMESPACE }} -o wide > artifacts/services.txt
+          kubectl get deployments -n ${{ env.NAMESPACE }} -o wide > artifacts/deployments.txt
+          kubectl get events -n ${{ env.NAMESPACE }} --sort-by=.lastTimestamp > artifacts/events.txt || true
+          kubectl describe pods -n ${{ env.NAMESPACE }} > artifacts/describe_pods.txt || true
+          kubectl logs -l app=api-gateway -n ${{ env.NAMESPACE }} --tail=200 > artifacts/api-gateway-logs.txt || true
+          kubectl logs -l app=frontend -n ${{ env.NAMESPACE }} --tail=200 > artifacts/frontend-logs.txt || true
+
+          {
+            echo "## Deployment Summary"
+            echo
+            echo "### Services (${{ env.NAMESPACE }})"
+            kubectl get svc -n ${{ env.NAMESPACE }}
+            echo
+            echo "### Pods (${{ env.NAMESPACE }})"
+            kubectl get pods -n ${{ env.NAMESPACE }}
+            echo
+            echo "### Failed Rollouts"
+            if [ -f artifacts/rollout_failures.txt ]; then cat artifacts/rollout_failures.txt; else echo "None"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload diagnostics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: k8s-diagnostics
+          path: artifacts
