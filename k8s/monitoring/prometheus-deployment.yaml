@@ -77,6 +77,10 @@ data:
               names:
                 - cnpm-food
         relabel_configs:
+          # Do not let cnpm-food-services scrape the api-gateway pods for prometheus path
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: api-gateway
+            action: drop
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
             action: keep
             regex: true
@@ -95,6 +99,30 @@ data:
           - source_labels: [__meta_kubernetes_pod_label_app]
             action: replace
             target_label: job
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+
+      # Scrape api-gateway health endpoint (use this to detect up/down without rebuilding the app)
+      - job_name: 'api-gateway-health'
+        metrics_path: '/actuator/health'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - cnpm-food
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: api-gateway
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: app
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
           - source_labels: [__meta_kubernetes_namespace]
             action: replace
             target_label: namespace
