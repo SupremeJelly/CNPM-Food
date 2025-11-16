@@ -186,6 +186,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download backend artifacts
         uses: actions/download-artifact@v4
@@ -304,7 +306,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Detect changed paths
         id: changes
@@ -394,6 +396,9 @@ jobs:
 
             Write-Host "Applying monitoring manifests from k8s/monitoring..."
             kubectl apply -n monitoring -f k8s/monitoring
+              # Ensure monitoring deployments pick up any ConfigMap changes
+              kubectl rollout restart deployment prometheus -n monitoring || Write-Host 'prometheus restart failed'
+              kubectl rollout restart deployment grafana -n monitoring || Write-Host 'grafana restart failed'
           } else {
             Write-Host "No monitoring manifests found at k8s/monitoring; skipping monitoring deploy."
           }
