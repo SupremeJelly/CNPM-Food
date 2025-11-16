@@ -2,6 +2,7 @@ package com.vanhuy.user_service.unit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vanhuy.user_service.component.JwtUtil;
+import com.vanhuy.user_service.config.TestSecurityConfig;
 import com.vanhuy.user_service.controller.AuthController;
 import com.vanhuy.user_service.dto.*;
 import com.vanhuy.user_service.service.AuthService;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -25,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(TestSecurityConfig.class)
 public class AuthControllerTest {
 
     @Autowired
@@ -41,9 +44,6 @@ public class AuthControllerTest {
 
     @MockBean
     private PasswordResetService passwordResetService;
-    
-    @MockBean
-    private org.springframework.security.core.userdetails.UserDetailsService userDetailsService;
 
     // ==================== REGISTER TESTS ====================
 

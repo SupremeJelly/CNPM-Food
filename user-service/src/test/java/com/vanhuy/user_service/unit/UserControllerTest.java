@@ -2,6 +2,7 @@ package com.vanhuy.user_service.unit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vanhuy.user_service.component.JwtUtil;
+import com.vanhuy.user_service.config.TestSecurityConfig;
 import com.vanhuy.user_service.controller.UserController;
 import com.vanhuy.user_service.dto.ProfileResponse;
 import com.vanhuy.user_service.dto.ProfileUpdateDTO;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(TestSecurityConfig.class)
 public class UserControllerTest {
 
     @Autowired
@@ -43,9 +46,6 @@ public class UserControllerTest {
 
     @MockBean
     private JwtUtil jwtUtil;
-    
-    @MockBean
-    private org.springframework.security.core.userdetails.UserDetailsService userDetailsService;
 
     private User mockUser;
     private ProfileResponse mockProfileResponse;
