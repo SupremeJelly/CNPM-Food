@@ -1,4 +1,4 @@
-// package com.vanhuy.restaurant_service.controller;
+package com.vanhuy.restaurant_service.controller;
 
 import com.vanhuy.restaurant_service.dto.OrderItemDTO;
 import com.vanhuy.restaurant_service.exception.ResourceNotFoundException;
