@@ -1,4 +1,4 @@
-name: Integrated CI/CD Pipeline
+name: Hybrid CI/CD Pipeline (GitHub + Self-hosted)
 
 on:
   push:
@@ -16,7 +16,7 @@ env:
   NAMESPACE: cnpm-food
 
 jobs:
-  # ========== STAGE 1: TEST (Parallel) ==========
+  # ========== CI STAGES: Chạy trên GitHub-hosted runners ==========
   test-backend:
     runs-on: ubuntu-latest
     strategy:
@@ -83,7 +83,6 @@ jobs:
           path: frontend/coverage/
           retention-days: 7
 
-  # ========== STAGE 2: CODE QUALITY (After Tests) ==========
   code-quality:
     needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
@@ -120,7 +119,6 @@ jobs:
         run: npm audit --production || true
         continue-on-error: true
 
-  # ========== STAGE 3: BUILD ARTIFACTS (After Quality Checks) ==========
   build-artifacts:
     needs: code-quality
     runs-on: ubuntu-latest
@@ -177,7 +175,6 @@ jobs:
           path: frontend/dist/
           retention-days: 30
 
-  # ========== STAGE 4: BUILD & PUSH DOCKER IMAGES (Only on main/src branch) ==========
   build-images:
     needs: build-artifacts
     runs-on: ubuntu-latest
@@ -292,156 +289,194 @@ jobs:
           cache-from: type=registry,ref=onlykohi/cnpm-frontend:latest
           cache-to: type=inline
 
-  # ========== STAGE 5: DEPLOY TO KUBERNETES (Only after successful image build) ==========
+  # ========== CD STAGE: Chạy trên Self-hosted runner ==========
   deploy:
     needs: build-images
-    runs-on: self-hosted  # 🔥 SỬA: Chuyển sang self-hosted để có kubectl access
+    runs-on: self-hosted  # 🔥 CHẠY TRÊN SELF-HOSTED RUNNER
     environment: staging
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-      - name: Verify kubectl access (self-hosted runner)
-        shell: bash  # Dùng bash cho compatibility
+      # Không cần configure kubeconfig - runner đã có sẵn
+      - name: Verify kubectl access
+        shell: powershell
         run: |
-          echo "Verifying kubectl access on self-hosted runner..."
+          Write-Host "Verifying kubectl access on self-hosted runner..."
           kubectl version --client=true
           kubectl config current-context
           kubectl cluster-info
 
       - name: Create namespaces
-        shell: bash
+        shell: powershell
         run: |
-          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace $env:NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
           kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Detect changed paths
         id: changes
-        shell: bash
+        shell: powershell
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff-tree --no-commit-id --name-only -r HEAD)
-          echo "changed=$CHANGED" >> $GITHUB_OUTPUT
+          try {
+            $diff = git diff --name-only HEAD~1 HEAD 2>$null
+            if (-not $diff) { $diff = (git diff-tree --no-commit-id --name-only -r HEAD) }
+          } catch {
+            $diff = (git diff-tree --no-commit-id --name-only -r HEAD)
+          }
+          if (-not $diff) { $diff = "all" }
+          Write-Host "Changed files:`n$diff"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "changed=$diff"
 
       - name: Deploy MySQL (if needed)
-        shell: bash
+        shell: powershell
         run: |
-          MYSQL_EXISTS=$(kubectl get deploy/mysql -n $NAMESPACE --ignore-not-found)
-          if [ -z "$MYSQL_EXISTS" ] || echo "${{ steps.changes.outputs.changed }}" | grep -q "mysql-init/"; then
-            echo "Deploying MySQL..."
-            kubectl create configmap mysql-init-script -n $NAMESPACE \
-              --from-file=init.sql=mysql-init/init.sql \
+          $mysqlExists = (kubectl get deploy/mysql -n $env:NAMESPACE --ignore-not-found)
+          $initChanged = "${{ steps.changes.outputs.changed }}" -like "*mysql-init/*"
+          
+          if (-not $mysqlExists -or $initChanged) {
+            Write-Host "Deploying MySQL..."
+            kubectl create configmap mysql-init-script -n $env:NAMESPACE `
+              --from-file=init.sql=mysql-init/init.sql `
               --dry-run=client -o yaml | kubectl apply -f -
-            kubectl apply -n $NAMESPACE -f k8s/services/mysql-deployment.yaml
-            kubectl wait --for=condition=ready pod -l app=mysql -n $NAMESPACE --timeout=300s
-          else
-            echo "MySQL already running and init.sql unchanged - skipping"
-          fi
+            kubectl apply -n $env:NAMESPACE -f k8s/services/mysql-deployment.yaml
+            kubectl wait --for=condition=ready pod -l app=mysql -n $env:NAMESPACE --timeout=300s
+          } else {
+            Write-Host "MySQL already running and init.sql unchanged - skipping"
+          }
 
       - name: Deploy backend services
-        shell: bash
+        shell: powershell
         run: |
-          kubectl apply -n $NAMESPACE -f k8s/services/user-service-deployment.yaml
-          kubectl apply -n $NAMESPACE -f k8s/services/restaurant-service-deployment.yaml
-          kubectl apply -n $NAMESPACE -f k8s/services/order-service-deployment.yaml
-          kubectl apply -n $NAMESPACE -f k8s/services/payment-service-deployment.yaml
+          kubectl apply -n $env:NAMESPACE -f k8s/services/user-service-deployment.yaml
+          kubectl apply -n $env:NAMESPACE -f k8s/services/restaurant-service-deployment.yaml
+          kubectl apply -n $env:NAMESPACE -f k8s/services/order-service-deployment.yaml
+          kubectl apply -n $env:NAMESPACE -f k8s/services/payment-service-deployment.yaml
 
       - name: Deploy API Gateway and Frontend
-        shell: bash
+        shell: powershell
         run: |
-          kubectl apply -n $NAMESPACE -f k8s/services/api-gateway-deployment.yaml
-          kubectl apply -n $NAMESPACE -f k8s/services/frontend-deployment.yaml
+          kubectl apply -n $env:NAMESPACE -f k8s/services/api-gateway-deployment.yaml
+          kubectl apply -n $env:NAMESPACE -f k8s/services/frontend-deployment.yaml
 
       - name: Update images to commit SHA
-        shell: bash
+        shell: powershell
         run: |
-          CHANGED="${{ steps.changes.outputs.changed }}"
-          if echo "$CHANGED" | grep -q "user-service/"; then
-            kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $NAMESPACE
-          fi
-          if echo "$CHANGED" | grep -q "restaurant-service/"; then
-            kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $NAMESPACE
-          fi
-          if echo "$CHANGED" | grep -q "order-service/"; then
-            kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $NAMESPACE
-          fi
-          if echo "$CHANGED" | grep -q "payment-service/"; then
-            kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $NAMESPACE
-          fi
-          if echo "$CHANGED" | grep -q "api-gateway/"; then
-            kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $NAMESPACE
-          fi
-          if echo "$CHANGED" | grep -q "frontend/"; then
-            kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $NAMESPACE
-          fi
+          $changed = "${{ steps.changes.outputs.changed }}"
+          
+          if ($changed -like "*user-service/*") {
+            kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $env:NAMESPACE
+          }
+          if ($changed -like "*restaurant-service/*") {
+            kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $env:NAMESPACE
+          }
+          if ($changed -like "*order-service/*") {
+            kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $env:NAMESPACE
+          }
+          if ($changed -like "*payment-service/*") {
+            kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $env:NAMESPACE
+          }
+          if ($changed -like "*api-gateway/*") {
+            kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE
+          }
+          if ($changed -like "*frontend/*") {
+            kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE
+          }
 
       - name: Wait for rollout completion
-        shell: bash
+        shell: powershell
         run: |
-          CHANGED="${{ steps.changes.outputs.changed }}"
-          FAILED=""
+          $changed = "${{ steps.changes.outputs.changed }}"
+          $failed = @()
           
-          if echo "$CHANGED" | grep -q "user-service/\|k8s/"; then
-            kubectl rollout status deployment/user-service -n $NAMESPACE --timeout=5m || FAILED="$FAILED user-service"
-          fi
-          if echo "$CHANGED" | grep -q "restaurant-service/\|k8s/"; then
-            kubectl rollout status deployment/restaurant-service -n $NAMESPACE --timeout=5m || FAILED="$FAILED restaurant-service"
-          fi
-          if echo "$CHANGED" | grep -q "order-service/\|k8s/"; then
-            kubectl rollout status deployment/order-service -n $NAMESPACE --timeout=5m || FAILED="$FAILED order-service"
-          fi
-          if echo "$CHANGED" | grep -q "payment-service/\|k8s/"; then
-            kubectl rollout status deployment/payment-service -n $NAMESPACE --timeout=5m || FAILED="$FAILED payment-service"
-          fi
-          if echo "$CHANGED" | grep -q "api-gateway/\|k8s/"; then
-            kubectl rollout status deployment/api-gateway -n $NAMESPACE --timeout=5m || FAILED="$FAILED api-gateway"
-          fi
-          if echo "$CHANGED" | grep -q "frontend/\|k8s/"; then
-            kubectl rollout status deployment/frontend -n $NAMESPACE --timeout=5m || FAILED="$FAILED frontend"
-          fi
+          if ($changed -like "*user-service/*" -or $changed -like "*k8s/*") {
+            kubectl rollout status deployment/user-service -n $env:NAMESPACE --timeout=5m
+            if ($LASTEXITCODE -ne 0) { $failed += "user-service" }
+          }
+          if ($changed -like "*restaurant-service/*" -or $changed -like "*k8s/*") {
+            kubectl rollout status deployment/restaurant-service -n $env:NAMESPACE --timeout=5m
+            if ($LASTEXITCODE -ne 0) { $failed += "restaurant-service" }
+          }
+          if ($changed -like "*order-service/*" -or $changed -like "*k8s/*") {
+            kubectl rollout status deployment/order-service -n $env:NAMESPACE --timeout=5m
+            if ($LASTEXITCODE -ne 0) { $failed += "order-service" }
+          }
+          if ($changed -like "*payment-service/*" -or $changed -like "*k8s/*") {
+            kubectl rollout status deployment/payment-service -n $env:NAMESPACE --timeout=5m
+            if ($LASTEXITCODE -ne 0) { $failed += "payment-service" }
+          }
+          if ($changed -like "*api-gateway/*" -or $changed -like "*k8s/*") {
+            kubectl rollout status deployment/api-gateway -n $env:NAMESPACE --timeout=5m
+            if ($LASTEXITCODE -ne 0) { $failed += "api-gateway" }
+          }
+          if ($changed -like "*frontend/*" -or $changed -like "*k8s/*") {
+            kubectl rollout status deployment/frontend -n $env:NAMESPACE --timeout=5m
+            if ($LASTEXITCODE -ne 0) { $failed += "frontend" }
+          }
           
-          if [ -n "$FAILED" ]; then
-            echo "❌ Failed deployments: $FAILED" >> $GITHUB_STEP_SUMMARY
+          if ($failed.Count -gt 0) {
+            $failedStr = $failed -join ', '
+            Write-Host "❌ Failed deployments: $failedStr"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "❌ Failed: $failedStr"
             exit 1
-          fi
+          }
 
       - name: Deploy monitoring stack
-        shell: bash
+        shell: powershell
         run: |
           kubectl apply -f k8s/monitoring/prometheus-deployment.yaml
           kubectl apply -f k8s/monitoring/grafana-deployment.yaml
-          kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=300s || true
-          kubectl wait --for=condition=ready pod -l app=grafana -n monitoring --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=grafana -n monitoring --timeout=300s
+        continue-on-error: true
+
+      - name: Apply Ingress (if exists)
+        shell: powershell
+        run: |
+          if (Test-Path "k8s/ingress.yaml") {
+            kubectl apply -f k8s/ingress.yaml
+          }
+        continue-on-error: true
 
       - name: Deployment summary
         if: always()
-        shell: bash
+        shell: powershell
         run: |
-          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Pods Status" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          kubectl get pods -n $NAMESPACE >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Services" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          kubectl get svc -n $NAMESPACE >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          $summary = @"
+## 🚀 Deployment Summary (Self-hosted Runner)
+
+### Pods Status
+``````
+$(kubectl get pods -n $env:NAMESPACE)
+``````
+
+### Services
+``````
+$(kubectl get svc -n $env:NAMESPACE)
+``````
+
+### Ingress (if exists)
+``````
+$(kubectl get ingress -n $env:NAMESPACE 2>$null)
+``````
+"@
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
 
       - name: Upload diagnostics on failure
         if: failure()
-        shell: bash
+        shell: powershell
         run: |
-          mkdir -p diagnostics
-          kubectl get pods -n $NAMESPACE -o yaml > diagnostics/pods.yaml
-          kubectl describe pods -n $NAMESPACE > diagnostics/pods-describe.txt
-          kubectl logs -l app=user-service -n $NAMESPACE --tail=100 > diagnostics/user-service.log || true
-          kubectl logs -l app=order-service -n $NAMESPACE --tail=100 > diagnostics/order-service.log || true
-          kubectl logs -l app=restaurant-service -n $NAMESPACE --tail=100 > diagnostics/restaurant-service.log || true
-          kubectl logs -l app=payment-service -n $NAMESPACE --tail=100 > diagnostics/payment-service.log || true
-          kubectl logs -l app=api-gateway -n $NAMESPACE --tail=100 > diagnostics/api-gateway.log || true
+          New-Item -ItemType Directory -Path diagnostics -Force
+          kubectl get pods -n $env:NAMESPACE -o yaml > diagnostics/pods.yaml
+          kubectl describe pods -n $env:NAMESPACE > diagnostics/pods-describe.txt
+          kubectl logs -l app=user-service -n $env:NAMESPACE --tail=100 > diagnostics/user-service.log 2>$null
+          kubectl logs -l app=order-service -n $env:NAMESPACE --tail=100 > diagnostics/order-service.log 2>$null
+          kubectl logs -l app=restaurant-service -n $env:NAMESPACE --tail=100 > diagnostics/restaurant-service.log 2>$null
+          kubectl logs -l app=payment-service -n $env:NAMESPACE --tail=100 > diagnostics/payment-service.log 2>$null
+          kubectl logs -l app=api-gateway -n $env:NAMESPACE --tail=100 > diagnostics/api-gateway.log 2>$null
 
       - name: Upload diagnostics artifact
         if: failure()
