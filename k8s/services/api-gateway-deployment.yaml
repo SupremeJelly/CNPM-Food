@@ -45,6 +45,8 @@ spec:
           value: "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration"
         - name: MANAGEMENT_HEALTH_REDIS_ENABLED
           value: "false"
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          value: "health,info,prometheus"
         - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_ADD-TO-SIMPLE-URL-HANDLER-MAPPING
           value: "true"
         - name: ALLOWED_ORIGINS
