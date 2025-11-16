@@ -21,19 +21,19 @@ public class GatewayController {
     }
 
     // expose the services connected to the API Gateway
-    @GetMapping("/services-connected")
-    public Map<String, List<String>> getServices() {
-        List<String> services = discoveryClient.getServices();
-        Map<String, List<String>> serviceDetails = new HashMap<>();
+    // @GetMapping("/services-connected")
+    // public Map<String, List<String>> getServices() {
+    //     List<String> services = discoveryClient.getServices();
+    //     Map<String, List<String>> serviceDetails = new HashMap<>();
 
-        for (String service : services) {
-            List<String> instances = discoveryClient.getInstances(service)
-                    .stream()
-                    .map(instance -> instance.getUri().toString())
-                    .collect(Collectors.toList());
-            serviceDetails.put(service, instances);
-        }
+    //     for (String service : services) {
+    //         List<String> instances = discoveryClient.getInstances(service)
+    //                 .stream()
+    //                 .map(instance -> instance.getUri().toString())
+    //                 .collect(Collectors.toList());
+    //         serviceDetails.put(service, instances);
+    //     }
 
-        return serviceDetails;
-    }
+    //     return serviceDetails;
+    // }
 }
