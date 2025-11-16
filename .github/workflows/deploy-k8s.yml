@@ -155,6 +155,25 @@ jobs:
             kubectl wait --for=condition=ready pod -l app=mysql -n $env:NAMESPACE --timeout=300s
           }
 
+      - name: Deploy Monitoring manifests
+        shell: powershell
+        env:
+          CHANGED_PATHS: ${{ steps.changes.outputs.changed }}
+        run: |
+          Write-Host "Preparing monitoring deployment..."
+          # Ensure monitoring namespace exists (created earlier in Prepare MySQL step)
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+          if (Test-Path "k8s/monitoring") {
+            Write-Host "Deleting old monitoring pods (if any) in namespace 'monitoring'..."
+            kubectl delete pod -n monitoring --all --ignore-not-found
+
+            Write-Host "Applying monitoring manifests from k8s/monitoring..."
+            kubectl apply -n monitoring -f k8s/monitoring
+          } else {
+            Write-Host "No monitoring manifests found at k8s/monitoring; skipping monitoring deploy."
+          }
+
       - name: Deploy Microservices (backends first, gateway last)
         shell: powershell
         env:
