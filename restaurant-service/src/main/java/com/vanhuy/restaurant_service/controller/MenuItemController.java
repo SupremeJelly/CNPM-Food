@@ -38,15 +38,15 @@ public class MenuItemController {
         return ResponseEntity.ok(createdMenuItem);
     }
 
-    @GetMapping("/restaurant/{restaurantId}")
-    public ResponseEntity<List<OrderItemDTO>> getMenuItemsByRestaurantId(@PathVariable Integer restaurantId) {
-        Restaurant restaurant = restaurantService.getRestaurantById(restaurantId);
-        if (restaurant == null) {
-            return ResponseEntity.notFound().build();
-        }
-        List<OrderItemDTO> menuItems = menuItemService.getMenuItemsByRestaurantId(restaurant);
-        return ResponseEntity.ok(menuItems);
-    }
+    // @GetMapping("/restaurant/{restaurantId}")
+    // public ResponseEntity<List<OrderItemDTO>> getMenuItemsByRestaurantId(@PathVariable Integer restaurantId) {
+    //     Restaurant restaurant = restaurantService.getRestaurantById(restaurantId);
+    //     if (restaurant == null) {
+    //         return ResponseEntity.notFound().build();
+    //     }
+    //     List<OrderItemDTO> menuItems = menuItemService.getMenuItemsByRestaurantId(restaurant);
+    //     return ResponseEntity.ok(menuItems);
+    // }
 
     @PostMapping("/{menuItemId}/upload-image")
     public ResponseEntity<OrderItemDTO> uploadImage(
@@ -62,15 +62,15 @@ public class MenuItemController {
         }
     }
 
-    @GetMapping("/images/{filename:.+}")
-    public ResponseEntity<Resource> getImage(@PathVariable String filename) {
-        Resource resource = imageService.getImage(filename);
-        return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_JPEG)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
-                .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000") // Cache for 1 year
-                .body(resource);
-    }
+    // @GetMapping("/images/{filename:.+}")
+    // public ResponseEntity<Resource> getImage(@PathVariable String filename) {
+    //     Resource resource = imageService.getImage(filename);
+    //     return ResponseEntity.ok()
+    //             .contentType(MediaType.IMAGE_JPEG)
+    //             .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+    //             .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000") // Cache for 1 year
+    //             .body(resource);
+    // }
 
     // get price by menu item id
     @GetMapping("/{menuItemId}")
