@@ -293,7 +293,8 @@ jobs:
           cache-to: type=inline
 
   # ========== STAGE 5: DEPLOY TO KUBERNETES (Only after successful image build) ==========
-  build-and-deploy:
+  deploy-to-k8s:
+    needs: build-images
     runs-on: self-hosted
     environment: staging
     permissions:
@@ -321,76 +322,11 @@ jobs:
           echo "CHANGED_PATHS=$diff" >> $env:GITHUB_ENV
           Add-Content -Path $env:GITHUB_OUTPUT -Value ("changed=$diff")
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to DockerHub
+      - name: Login to DockerHub (for pulling images)
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
-
-      - name: Build and Push user-service
-        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'user-service/') }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ./user-service
-          push: true
-          tags: |
-            onlykohi/cnpm-user-service:latest
-            onlykohi/cnpm-user-service:${{ github.sha }}
-
-      - name: Build and Push order-service
-        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'order-service/') }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ./order-service
-          push: true
-          tags: |
-            onlykohi/cnpm-order-service:latest
-            onlykohi/cnpm-order-service:${{ github.sha }}
-
-      - name: Build and Push restaurant-service
-        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'restaurant-service/') }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ./restaurant-service
-          push: true
-          tags: |
-            onlykohi/cnpm-restaurant-service:latest
-            onlykohi/cnpm-restaurant-service:${{ github.sha }}
-
-      - name: Build and Push payment-service
-        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'payment-service/') }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ./payment-service
-          push: true
-          tags: |
-            onlykohi/cnpm-payment-service:latest
-            onlykohi/cnpm-payment-service:${{ github.sha }}
-
-
-      # Build & push images (tag latest + commit SHA)
-      - name: Build and Push API Gateway
-        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'api-gateway/') }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ./api-gateway
-          push: true
-          tags: |
-            onlykohi/cnpm-api-gateway:latest
-            onlykohi/cnpm-api-gateway:${{ github.sha }}
-
-      - name: Build and Push frontend
-        if: ${{ steps.changes.outputs.changed != '' && contains(steps.changes.outputs.changed, 'frontend/') }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: |
-            onlykohi/cnpm-frontend:latest
-            onlykohi/cnpm-frontend:${{ github.sha }}
 
       # Set up kubectl and configure KUBECONFIG (requires KUBE_CONFIG_DATA secret)
       - name: Set up kubectl
