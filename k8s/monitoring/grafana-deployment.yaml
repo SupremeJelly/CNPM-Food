@@ -425,7 +425,9 @@ spec:
         - name: grafana-dashboards-config
           mountPath: /etc/grafana/provisioning/dashboards
         - name: grafana-dashboards
-          mountPath: /var/lib/grafana/dashboards
+          mountPath: /var/lib/grafana/dashboards/default
+        - name: grafana-dashboards-advanced
+          mountPath: /var/lib/grafana/dashboards/microservices
         resources:
           requests:
             memory: "256Mi"
@@ -445,6 +447,9 @@ spec:
       - name: grafana-dashboards
         configMap:
           name: grafana-dashboard-spring-boot
+      - name: grafana-dashboards-advanced
+        configMap:
+          name: grafana-dashboard-microservices
 
 ---
 # Grafana Service
