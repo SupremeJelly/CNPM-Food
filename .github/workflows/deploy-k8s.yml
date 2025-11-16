@@ -168,6 +168,14 @@ jobs:
             Write-Host "Deleting old monitoring pods (if any) in namespace 'monitoring'..."
             kubectl delete pod -n monitoring --all --ignore-not-found
 
+            # If a Prometheus manifest is present, deploy it first so Grafana datasource has a target
+            if (Test-Path "k8s/monitoring/prometheus-deployment.yaml") {
+              Write-Host "Found Prometheus manifest; applying prometheus first..."
+              kubectl apply -n monitoring -f k8s/monitoring/prometheus-deployment.yaml
+              Write-Host "Waiting up to 120s for Prometheus pod to become ready..."
+              kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=120s || Write-Host "Prometheus did not become ready within timeout"
+            }
+
             Write-Host "Applying monitoring manifests from k8s/monitoring..."
             kubectl apply -n monitoring -f k8s/monitoring
           } else {
