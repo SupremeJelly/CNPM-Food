@@ -44,12 +44,9 @@ class RestaurantServiceTest {
 
     private Restaurant restaurant;
     private RestaurantDTO restaurantDTO;
-    private static final String BASE_URL = "http://localhost:8081";
 
     @BeforeEach
     void setUp() {
-        // Set base URL for testing
-        ReflectionTestUtils.setField(restaurantService, "baseUrl", BASE_URL);
 
         restaurant = new Restaurant();
         restaurant.setRestaurantId(1);
