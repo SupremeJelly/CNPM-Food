@@ -42,6 +42,11 @@ data:
         kubernetes_sd_configs:
           - role: pod
         relabel_configs:
+          # Drop pods from the `cnpm-food` namespace here to avoid double-scraping
+          # (they are scraped separately by the `cnpm-food-services` job).
+          - source_labels: [__meta_kubernetes_namespace]
+            regex: cnpm-food
+            action: drop
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
             action: keep
             regex: true
