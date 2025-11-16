@@ -173,7 +173,8 @@ jobs:
               Write-Host "Found Prometheus manifest; applying prometheus first..."
               kubectl apply -n monitoring -f k8s/monitoring/prometheus-deployment.yaml
               Write-Host "Waiting up to 120s for Prometheus pod to become ready..."
-              kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=120s || Write-Host "Prometheus did not become ready within timeout"
+              kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=120s
+              if ($LASTEXITCODE -ne 0) { Write-Host "Prometheus did not become ready within timeout" }
             }
 
             Write-Host "Applying monitoring manifests from k8s/monitoring..."
