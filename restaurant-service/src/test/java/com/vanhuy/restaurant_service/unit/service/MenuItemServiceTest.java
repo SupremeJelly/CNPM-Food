@@ -46,12 +46,9 @@ class MenuItemServiceTest {
     private Restaurant restaurant;
     private MenuItem menuItem;
     private OrderItemDTO orderItemDTO;
-    private static final String BASE_URL = "http://localhost:8081";
 
     @BeforeEach
     void setUp() {
-        // Set base URL for testing
-        ReflectionTestUtils.setField(menuItemService, "baseUrl", BASE_URL);
 
         restaurant = new Restaurant();
         restaurant.setRestaurantId(1);
@@ -337,9 +334,7 @@ class MenuItemServiceTest {
         // Then
         assertThat(result).isNotNull();
         assertThat(result.get(0).getImageUrl()).isNotNull();
-        assertThat(result.get(0).getImageUrl()).contains(BASE_URL);
-        assertThat(result.get(0).getImageUrl()).contains("/api/v1/menu-items/images/");
-        assertThat(result.get(0).getImageUrl()).contains("pho-bo.jpg");
+        assertThat(result.get(0).getImageUrl()).isEqualTo("/api/v1/menu-items/images/pho-bo.jpg");
     }
 
     @Test
