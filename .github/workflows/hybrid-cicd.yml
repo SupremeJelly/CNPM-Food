@@ -2,7 +2,7 @@ name: Hybrid CI/CD Pipeline (GitHub + Self-hosted)
 
 on:
   push:
-    branches: [ main, src ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
