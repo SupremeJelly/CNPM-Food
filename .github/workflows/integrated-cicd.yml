@@ -395,10 +395,12 @@ jobs:
             }
 
             Write-Host "Applying monitoring manifests from k8s/monitoring..."
-            kubectl apply -n monitoring -f k8s/monitoring
+              kubectl apply -n monitoring -f k8s/monitoring
               # Ensure monitoring deployments pick up any ConfigMap changes
-              kubectl rollout restart deployment prometheus -n monitoring || Write-Host 'prometheus restart failed'
-              kubectl rollout restart deployment grafana -n monitoring || Write-Host 'grafana restart failed'
+              kubectl rollout restart deployment prometheus -n monitoring
+              if ($LASTEXITCODE -ne 0) { Write-Host 'prometheus restart failed' }
+              kubectl rollout restart deployment grafana -n monitoring
+              if ($LASTEXITCODE -ne 0) { Write-Host 'grafana restart failed' }
           } else {
             Write-Host "No monitoring manifests found at k8s/monitoring; skipping monitoring deploy."
           }
@@ -426,8 +428,10 @@ jobs:
           kubectl apply -n $env:NAMESPACE -f k8s/services/frontend-deployment.yaml
 
           # Ensure api-gateway exposes Prometheus endpoint and is annotated for scraping
-          kubectl set env deployment/api-gateway MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,prometheus -n $env:NAMESPACE || Write-Host 'set env failed or already set'
-          kubectl annotate deployment api-gateway prometheus.io/scrape="true" prometheus.io/path="/actuator/prometheus" prometheus.io/port="9000" -n $env:NAMESPACE --overwrite || Write-Host 'annotate failed'
+          kubectl set env deployment/api-gateway MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,prometheus -n $env:NAMESPACE
+          if ($LASTEXITCODE -ne 0) { Write-Host 'set env failed or already set' }
+          kubectl annotate deployment api-gateway prometheus.io/scrape="true" prometheus.io/path="/actuator/prometheus" prometheus.io/port="9000" -n $env:NAMESPACE --overwrite
+          if ($LASTEXITCODE -ne 0) { Write-Host 'annotate failed' }
 
           Write-Host "Delete pods for changed services before updating images (non-destructive)"
           if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('user-service/')) { kubectl delete pod -l app=user-service -n $env:NAMESPACE --ignore-not-found }
