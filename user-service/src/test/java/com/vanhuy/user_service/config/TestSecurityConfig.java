@@ -9,13 +9,28 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Test configuration for unit tests
  * Provides minimal beans required for @WebMvcTest
+ * Disables security to allow testing without authentication
  */
 @TestConfiguration
 public class TestSecurityConfig {
+
+    @Bean
+    public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/v1/users/profile").authenticated()
+                .anyRequest().permitAll()
+            );
+        return http.build();
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
