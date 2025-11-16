@@ -7,12 +7,14 @@ import com.vanhuy.user_service.controller.UserController;
 import com.vanhuy.user_service.dto.ProfileResponse;
 import com.vanhuy.user_service.dto.ProfileUpdateDTO;
 import com.vanhuy.user_service.model.User;
+import com.vanhuy.user_service.service.FileStorageService;
 import com.vanhuy.user_service.service.ProfileService;
 import com.vanhuy.user_service.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -21,14 +23,17 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Set;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = UserController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @Import(TestSecurityConfig.class)
 public class UserControllerTest {
 
@@ -45,6 +50,9 @@ public class UserControllerTest {
     private ProfileService profileService;
 
     @MockBean
+    private FileStorageService fileStorageService;
+
+    @MockBean
     private JwtUtil jwtUtil;
 
     private User mockUser;
@@ -57,6 +65,8 @@ public class UserControllerTest {
         mockUser.setUsername("testuser");
         mockUser.setEmail("testuser@gmail.com");
         mockUser.setAddress("123 Test Street");
+        mockUser.setPassword("password123");
+        mockUser.setRoles(Set.of("ROLE_USER")); // Add role for authentication
 
         mockProfileResponse = ProfileResponse.builder()
                 .username("testuser")
@@ -76,13 +86,19 @@ public class UserControllerTest {
         when(profileService.getProfile(anyInt())).thenReturn(mockProfileResponse);
 
         // When & Then
-        mockMvc.perform(get("/api/v1/users/profile")
-                        .with(user(mockUser)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("testuser"))
-                .andExpect(jsonPath("$.email").value("testuser@gmail.com"))
-                .andExpect(jsonPath("$.address").value("123 Test Street"))
-                .andExpect(jsonPath("$.profileImageUrl").value("http://localhost/images/profile.jpg"));
+        try {
+            mockMvc.perform(get("/api/v1/users/profile")
+                            .with(user(mockUser)))
+                    .andDo(print()) // Debug: print request/response
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.username").value("testuser"))
+                    .andExpect(jsonPath("$.email").value("testuser@gmail.com"))
+                    .andExpect(jsonPath("$.address").value("123 Test Street"))
+                    .andExpect(jsonPath("$.profileImageUrl").value("http://localhost/images/profile.jpg"));
+        } catch (AssertionError e) {
+            System.out.println("TEST FAILED - Error: " + e.getMessage());
+            throw e; // Re-throw to fail test
+        }
 
         verify(profileService, times(1)).getProfile(1);
     }
