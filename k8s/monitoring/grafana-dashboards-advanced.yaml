@@ -997,6 +997,61 @@ data:
           "title": "🧵 JVM Threads Count",
           "type": "timeseries"
         }
+            ,
+            {
+              "datasource": "Prometheus",
+              "description": "Traffic Distribution by Route (api-gateway)",
+              "gridPos": {"h": 8, "w": 12, "x": 0, "y": 42},
+              "id": 12,
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "expr": "sum(rate(http_server_requests_seconds_count{job=\"api-gateway\"}[1m])) by (uri)",
+                  "legendFormat": "{{uri}}",
+                  "refId": "A"
+                }
+              ],
+              "title": "Traffic Distribution by Route (api-gateway)",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Gateway Overhead Latency (p50/p95)",
+              "gridPos": {"h": 8, "w": 12, "x": 12, "y": 42},
+              "id": 13,
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{job=\"api-gateway\"}[5m])) by (le, uri))",
+                  "legendFormat": "p50 - {{uri}}",
+                  "refId": "A"
+                },
+                {
+                  "datasource": "Prometheus",
+                  "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"api-gateway\"}[5m])) by (le, uri))",
+                  "legendFormat": "p95 - {{uri}}",
+                  "refId": "B"
+                }
+              ],
+              "title": "Gateway Overhead Latency (p50/p95)",
+              "type": "timeseries"
+            },
+            {
+              "datasource": "Prometheus",
+              "description": "Gateway Routing Errors (5xx rate by route)",
+              "gridPos": {"h": 8, "w": 12, "x": 0, "y": 50},
+              "id": 14,
+              "targets": [
+                {
+                  "datasource": "Prometheus",
+                  "expr": "sum(rate(http_server_requests_seconds_count{job=\"api-gateway\",status=~\"5..\"}[5m])) by (uri) / sum(rate(http_server_requests_seconds_count{job=\"api-gateway\"}[5m])) by (uri)",
+                  "legendFormat": "{{uri}} - 5xx %",
+                  "refId": "A"
+                }
+              ],
+              "title": "Gateway Routing Errors (5xx rate by route)",
+              "type": "timeseries"
+            }
       ],
       "refresh": "5s",
       "schemaVersion": 38,
@@ -1018,3 +1073,5 @@ data:
       "version": 1,
       "weekStart": ""
     }
+
+  # (panels for gateway traffic/latency/errors moved into the main microservices dashboard)
