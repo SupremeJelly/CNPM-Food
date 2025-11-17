@@ -310,19 +310,24 @@ jobs:
 
       - name: Detect changed paths
         id: changes
-        shell: powershell
         run: |
-          try {
-            $diff = git diff --name-only HEAD~1 HEAD 2>$null
-            if (-not $diff) { $diff = (git diff-tree --no-commit-id --name-only -r HEAD) }
-          } catch {
-            $diff = (git diff-tree --no-commit-id --name-only -r HEAD)
-          }
-          if (-not $diff) { $diff = "" }
-          Write-Host "Changed files:\n$diff"
-          # Export for later steps as both an env var and a step output
-          echo "CHANGED_PATHS=$diff" >> $env:GITHUB_ENV
-          Add-Content -Path $env:GITHUB_OUTPUT -Value ("changed=$diff")
+          # Get changed files
+          if [ "${{ github.event_name }}" == "push" ]; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff-tree --no-commit-id --name-only -r HEAD)
+          else
+            CHANGED_FILES=""
+          fi
+
+          # Clean up and join with spaces
+          CHANGED_CLEAN=$(echo "$CHANGED_FILES" | tr '\n' ' ' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo "Cleaned: $CHANGED_CLEAN"
+
+          # Set outputs
+          echo "CHANGED_PATHS=$CHANGED_CLEAN" >> $GITHUB_ENV
+          echo "changed=$CHANGED_CLEAN" >> $GITHUB_OUTPUT
 
       - name: Login to DockerHub (for pulling images)
         uses: docker/login-action@v3
