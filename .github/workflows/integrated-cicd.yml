@@ -310,23 +310,27 @@ jobs:
 
       - name: Detect changed paths
         id: changes
+        shell: powershell
         run: |
           # Get changed files
-          if [ "${{ github.event_name }}" == "push" ]; then
-            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff-tree --no-commit-id --name-only -r HEAD)
-          else
-            CHANGED_FILES=""
-          fi
+          $CHANGED_FILES = ""
+          if ("${{ github.event_name }}" -eq "push") {
+            try {
+              $CHANGED_FILES = git diff --name-only HEAD~1 HEAD 2>$null
+            } catch {
+              $CHANGED_FILES = git diff-tree --no-commit-id --name-only -r HEAD
+            }
+          }
 
           # Clean up and join with spaces
-          CHANGED_CLEAN=$(echo "$CHANGED_FILES" | tr '\n' ' ' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
+          $CHANGED_CLEAN = ($CHANGED_FILES -split "`n" | Where-Object { $_ -ne "" }) -join " "
 
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-          echo "Cleaned: $CHANGED_CLEAN"
+          Write-Host "Changed files:"
+          Write-Host $CHANGED_FILES
+          Write-Host "Cleaned: $CHANGED_CLEAN"
 
           # Set outputs
-          echo "CHANGED_PATHS=$CHANGED_CLEAN" >> $GITHUB_ENV
+          echo "CHANGED_PATHS=$CHANGED_CLEAN" >> $env:GITHUB_ENV
           echo "changed=$CHANGED_CLEAN" >> $GITHUB_OUTPUT
 
       - name: Login to DockerHub (for pulling images)
