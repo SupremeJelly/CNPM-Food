@@ -44,15 +44,15 @@ public class RestaurantController {
         return ResponseEntity.ok(restaurantService.getRestaurantsByPage(pageable));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<RestaurantDTO> getRestaurantById(@PathVariable Integer id) {
-        try {
-            RestaurantDTO restaurant = restaurantService.getRestaurantDTOById(id);
-            return ResponseEntity.ok(restaurant);
-        } catch (RestaurantNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
+    // @GetMapping("/{id}")
+    // public ResponseEntity<RestaurantDTO> getRestaurantById(@PathVariable Integer id) {
+    //     try {
+    //         RestaurantDTO restaurant = restaurantService.getRestaurantDTOById(id);
+    //         return ResponseEntity.ok(restaurant);
+    //     } catch (RestaurantNotFoundException e) {
+    //         return ResponseEntity.notFound().build();
+    //     }
+    // }
 
     @PutMapping("/{id}")
     public ResponseEntity<RestaurantDTO> updateRestaurant(
