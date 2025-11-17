@@ -27,21 +27,21 @@ public class OrderController {
         return new ResponseEntity<>(orderResponse, HttpStatus.CREATED);
     }
 
-    @GetMapping("/{orderId}")
-    public ResponseEntity<OrderResponse> getOrder(@PathVariable Integer orderId) {
-        OrderResponse orderResponse = orderService.getOrderById(orderId);
-        return new ResponseEntity<>(orderResponse, HttpStatus.OK);
-    }
+    // @GetMapping("/{orderId}")
+    // public ResponseEntity<OrderResponse> getOrder(@PathVariable Integer orderId) {
+    //     OrderResponse orderResponse = orderService.getOrderById(orderId);
+    //     return new ResponseEntity<>(orderResponse, HttpStatus.OK);
+    // }
 
-    @GetMapping()
-    public ResponseEntity<Page<OrderResponse>> getAllOrders(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<OrderResponse> orders = orderService.getAllOrders(pageable);
-        return ResponseEntity.ok(orders);
-    }
+    // @GetMapping()
+    // public ResponseEntity<Page<OrderResponse>> getAllOrders(
+    //         @RequestParam(defaultValue = "0") int page,
+    //         @RequestParam(defaultValue = "10") int size
+    // ) {
+    //     Pageable pageable = PageRequest.of(page, size);
+    //     Page<OrderResponse> orders = orderService.getAllOrders(pageable);
+    //     return ResponseEntity.ok(orders);
+    // }
     @PutMapping("/{orderId}/payment-status")
     public ResponseEntity<String> updatePaymentStatus(
             @PathVariable Integer orderId,
