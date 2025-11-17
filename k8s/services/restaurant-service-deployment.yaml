@@ -39,6 +39,8 @@ spec:
           value: "restaurantservice"
         - name: SPRING_DATASOURCE_PASSWORD
           value: "res"
+        - name: UPLOAD_DIR
+          value: "/app/uploads"
         startupProbe:
           httpGet:
             path: /actuator/health

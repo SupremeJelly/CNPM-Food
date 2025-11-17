@@ -62,15 +62,15 @@ public class MenuItemController {
         }
     }
 
-    // @GetMapping("/images/{filename:.+}")
-    // public ResponseEntity<Resource> getImage(@PathVariable String filename) {
-    //     Resource resource = imageService.getImage(filename);
-    //     return ResponseEntity.ok()
-    //             .contentType(MediaType.IMAGE_JPEG)
-    //             .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
-    //             .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000") // Cache for 1 year
-    //             .body(resource);
-    // }
+    @GetMapping("/images/{filename:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String filename) {
+        Resource resource = imageService.getImage(filename);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000") // Cache for 1 year
+                .body(resource);
+    }
 
     // get price by menu item id
     @GetMapping("/{menuItemId}")
