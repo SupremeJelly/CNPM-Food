@@ -44,30 +44,30 @@ public class RestaurantController {
         return ResponseEntity.ok(restaurantService.getRestaurantsByPage(pageable));
     }
 
-    // @GetMapping("/{id}")
-    // public ResponseEntity<RestaurantDTO> getRestaurantById(@PathVariable Integer id) {
-    //     try {
-    //         RestaurantDTO restaurant = restaurantService.getRestaurantDTOById(id);
-    //         return ResponseEntity.ok(restaurant);
-    //     } catch (RestaurantNotFoundException e) {
-    //         return ResponseEntity.notFound().build();
-    //     }
-    // }
+    @GetMapping("/{id}")
+    public ResponseEntity<RestaurantDTO> getRestaurantById(@PathVariable Integer id) {
+        try {
+            RestaurantDTO restaurant = restaurantService.getRestaurantDTOById(id);
+            return ResponseEntity.ok(restaurant);
+        } catch (RestaurantNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
-    // @PutMapping("/{id}")
-    // public ResponseEntity<RestaurantDTO> updateRestaurant(
-    //         @PathVariable Integer id,
-    //         @RequestPart("restaurant") RestaurantDTO restaurantDTO,
-    //         @RequestPart(value = "image", required = false) MultipartFile image) {
-    //     try {
-    //         RestaurantDTO updated = restaurantService.updateRestaurant(id, restaurantDTO, image);
-    //         return ResponseEntity.ok(updated);
-    //     } catch (RestaurantNotFoundException e) {
-    //         return ResponseEntity.notFound().build();
-    //     } catch (IOException e) {
-    //         return ResponseEntity.internalServerError().build();
-    //     }
-    // }
+    @PutMapping("/{id}")
+    public ResponseEntity<RestaurantDTO> updateRestaurant(
+            @PathVariable Integer id,
+            @RequestPart("restaurant") RestaurantDTO restaurantDTO,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        try {
+            RestaurantDTO updated = restaurantService.updateRestaurant(id, restaurantDTO, image);
+            return ResponseEntity.ok(updated);
+        } catch (RestaurantNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 
     @PostMapping("/{restaurantId}/upload-image")
     public ResponseEntity<RestaurantDTO> uploadImage(
