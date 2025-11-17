@@ -353,8 +353,8 @@ jobs:
           Write-Host "Filtered: $CHANGED_CLEAN"
 
           # Set outputs
-          echo "CHANGED_PATHS=$CHANGED_CLEAN" >> $env:GITHUB_ENV
-          echo "changed=$CHANGED_CLEAN" >> $GITHUB_OUTPUT
+          Add-Content -Path $env:GITHUB_ENV -Value "CHANGED_PATHS=$CHANGED_CLEAN"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "changed=$CHANGED_CLEAN"
 
       - name: Login to DockerHub (for pulling images)
         uses: docker/login-action@v3
