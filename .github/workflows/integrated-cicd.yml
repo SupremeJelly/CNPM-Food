@@ -219,19 +219,58 @@ jobs:
             CHANGED="all"
           fi
           
-          # Filter out documentation and workflow files, keep only source code
-          if [ "$CHANGED" != "all" ]; then
-            FILTERED=$(echo "$CHANGED" | grep -E '\.(java|ts|js|html|css|scss|json|xml|yml|yaml|properties|sql|Dockerfile)$|^(src/|frontend/|user-service/|order-service/|restaurant-service/|payment-service/|api-gateway/|mysql-init/|k8s/)' | grep -v -E '\.github/|\.md$|\.txt$' || echo "")
-            CHANGED="$FILTERED"
-          fi
-          
-          echo "changed=$CHANGED" >> $GITHUB_OUTPUT
           echo "Changed files:"
           echo "$CHANGED"
-          echo "$CHANGED"
+          
+          # Determine which services changed (ignore docs/workflows)
+          if [ "$CHANGED" == "all" ]; then
+            echo "user=true" >> $GITHUB_OUTPUT
+            echo "order=true" >> $GITHUB_OUTPUT
+            echo "restaurant=true" >> $GITHUB_OUTPUT
+            echo "payment=true" >> $GITHUB_OUTPUT
+            echo "gateway=true" >> $GITHUB_OUTPUT
+            echo "frontend=true" >> $GITHUB_OUTPUT
+          else
+            # Check each service (only if source code changed, not docs)
+            if echo "$CHANGED" | grep -qE 'user-service/.*\.(java|xml|properties|Dockerfile)'; then
+              echo "user=true" >> $GITHUB_OUTPUT
+            else
+              echo "user=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if echo "$CHANGED" | grep -qE 'order-service/.*\.(java|xml|properties|Dockerfile)'; then
+              echo "order=true" >> $GITHUB_OUTPUT
+            else
+              echo "order=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if echo "$CHANGED" | grep -qE 'restaurant-service/.*\.(java|xml|properties|Dockerfile)'; then
+              echo "restaurant=true" >> $GITHUB_OUTPUT
+            else
+              echo "restaurant=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if echo "$CHANGED" | grep -qE 'payment-service/.*\.(java|xml|properties|Dockerfile)'; then
+              echo "payment=true" >> $GITHUB_OUTPUT
+            else
+              echo "payment=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if echo "$CHANGED" | grep -qE 'api-gateway/.*\.(java|xml|properties|Dockerfile)'; then
+              echo "gateway=true" >> $GITHUB_OUTPUT
+            else
+              echo "gateway=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if echo "$CHANGED" | grep -qE 'frontend/.*\.(ts|js|html|css|scss|json|Dockerfile)'; then
+              echo "frontend=true" >> $GITHUB_OUTPUT
+            else
+              echo "frontend=false" >> $GITHUB_OUTPUT
+            fi
+          fi
 
       - name: Build and Push user-service
-        if: contains(steps.changes.outputs.changed, 'user-service/') || contains(steps.changes.outputs.changed, 'all')
+        if: steps.changes.outputs.user == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./user-service
@@ -243,7 +282,7 @@ jobs:
           cache-to: type=inline
 
       - name: Build and Push order-service
-        if: contains(steps.changes.outputs.changed, 'order-service/') || contains(steps.changes.outputs.changed, 'all')
+        if: steps.changes.outputs.order == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./order-service
@@ -255,7 +294,7 @@ jobs:
           cache-to: type=inline
 
       - name: Build and Push restaurant-service
-        if: contains(steps.changes.outputs.changed, 'restaurant-service/') || contains(steps.changes.outputs.changed, 'all')
+        if: steps.changes.outputs.restaurant == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./restaurant-service
@@ -267,7 +306,7 @@ jobs:
           cache-to: type=inline
 
       - name: Build and Push payment-service
-        if: contains(steps.changes.outputs.changed, 'payment-service/') || contains(steps.changes.outputs.changed, 'all')
+        if: steps.changes.outputs.payment == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./payment-service
@@ -279,7 +318,7 @@ jobs:
           cache-to: type=inline
 
       - name: Build and Push API Gateway
-        if: contains(steps.changes.outputs.changed, 'api-gateway/') || contains(steps.changes.outputs.changed, 'all')
+        if: steps.changes.outputs.gateway == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./api-gateway
@@ -291,7 +330,7 @@ jobs:
           cache-to: type=inline
 
       - name: Build and Push frontend
-        if: contains(steps.changes.outputs.changed, 'frontend/') || contains(steps.changes.outputs.changed, 'all')
+        if: steps.changes.outputs.frontend == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
@@ -321,40 +360,80 @@ jobs:
         shell: powershell
         run: |
           # Get changed files
-          $CHANGED_FILES = ""
+          $CHANGED = ""
           if ("${{ github.event_name }}" -eq "push") {
             try {
-              $CHANGED_FILES = git diff --name-only HEAD~1 HEAD 2>$null
+              $CHANGED = git diff --name-only HEAD~1 HEAD 2>$null
             } catch {
-              $CHANGED_FILES = git diff-tree --no-commit-id --name-only -r HEAD
+              $CHANGED = git diff-tree --no-commit-id --name-only -r HEAD
             }
           } else {
-            $CHANGED_FILES = "all"
+            $CHANGED = "all"
           }
-
-          # Filter out documentation and workflow files, keep only source code
-          if ($CHANGED_FILES -ne "all") {
-            $FILTERED = $CHANGED_FILES | Where-Object {
-              $_ -match '\.(java|ts|js|html|css|scss|json|xml|yml|yaml|properties|sql|Dockerfile)$' -or
-              $_ -match '^(src/|frontend/|user-service/|order-service/|restaurant-service/|payment-service/|api-gateway/|mysql-init/|k8s/)' -and
-              $_ -notmatch '\.github/' -and
-              $_ -notmatch '\.md$' -and
-              $_ -notmatch '\.txt$'
-            }
-            $CHANGED_FILES = ($FILTERED -join "`n").Trim()
-            if (-not $CHANGED_FILES) { $CHANGED_FILES = "" }
-          }
-
-          # Clean up and join with spaces
-          $CHANGED_CLEAN = ($CHANGED_FILES -split "`n" | Where-Object { $_ -ne "" }) -join " "
 
           Write-Host "Changed files:"
-          Write-Host $CHANGED_FILES
-          Write-Host "Filtered: $CHANGED_CLEAN"
+          Write-Host $CHANGED
 
-          # Set outputs
-          Add-Content -Path $env:GITHUB_ENV -Value "CHANGED_PATHS=$CHANGED_CLEAN"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "changed=$CHANGED_CLEAN"
+          # Determine which services changed (ignore docs/workflows)
+          if ($CHANGED -eq "all") {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=true"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
+          } else {
+            # Check each service (only source code changes)
+            if ($CHANGED -match 'user-service/.*\.(java|xml|properties|Dockerfile)') {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "user=false"
+            }
+            
+            if ($CHANGED -match 'order-service/.*\.(java|xml|properties|Dockerfile)') {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "order=false"
+            }
+            
+            if ($CHANGED -match 'restaurant-service/.*\.(java|xml|properties|Dockerfile)') {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=false"
+            }
+            
+            if ($CHANGED -match 'payment-service/.*\.(java|xml|properties|Dockerfile)') {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=false"
+            }
+            
+            if ($CHANGED -match 'api-gateway/.*\.(java|xml|properties|Dockerfile)') {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=false"
+            }
+            
+            if ($CHANGED -match 'frontend/.*\.(ts|js|html|css|scss|json|Dockerfile)') {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=false"
+            }
+            
+            if ($CHANGED -match 'mysql-init/') {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=true"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=false"
+            }
+            
+            if ($CHANGED -match 'k8s/') {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
+            } else {
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=false"
+            }
+          }
 
       - name: Login to DockerHub (for pulling images)
         uses: docker/login-action@v3
@@ -411,17 +490,14 @@ jobs:
 
       - name: Prepare MySQL Deployment
         shell: powershell
-        env:
-          CHANGED_PATHS: ${{ steps.changes.outputs.changed }}
         run: |
           # Namespaces
           kubectl create namespace $env:NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
           kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
-          $initChanged = $false
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('mysql-init/')) { $initChanged = $true }
+          $mysqlChanged = "${{ steps.changes.outputs.mysql }}" -eq "true"
           $mysqlExists = (kubectl get deploy/mysql -n $env:NAMESPACE --ignore-not-found | Select-String 'mysql')
-          if ($mysqlExists -and -not $initChanged) {
+          if ($mysqlExists -and -not $mysqlChanged) {
             Write-Host 'MySQL already exists and init.sql unchanged – skipping redeploy.'
           } else {
             Write-Host 'Applying (or reapplying) MySQL resources.'
@@ -433,8 +509,6 @@ jobs:
 
       - name: Deploy Monitoring manifests
         shell: powershell
-        env:
-          CHANGED_PATHS: ${{ steps.changes.outputs.changed }}
         run: |
           Write-Host "Preparing monitoring deployment..."
           # Ensure monitoring namespace exists (created earlier in Prepare MySQL step)
@@ -466,8 +540,6 @@ jobs:
 
       - name: Deploy Microservices (backends first, gateway last)
         shell: powershell
-        env:
-          CHANGED_PATHS: ${{ steps.changes.outputs.changed }}
         run: |
           Write-Host "Applying backend deployments first..."
           $backendFiles = @(
@@ -493,35 +565,33 @@ jobs:
           if ($LASTEXITCODE -ne 0) { Write-Host 'annotate failed' }
 
           Write-Host "Delete pods for changed services before updating images (non-destructive)"
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('user-service/')) { kubectl delete pod -l app=user-service -n $env:NAMESPACE --ignore-not-found }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('restaurant-service/')) { kubectl delete pod -l app=restaurant-service -n $env:NAMESPACE --ignore-not-found }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('order-service/')) { kubectl delete pod -l app=order-service -n $env:NAMESPACE --ignore-not-found }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('payment-service/')) { kubectl delete pod -l app=payment-service -n $env:NAMESPACE --ignore-not-found }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('api-gateway/')) { kubectl delete pod -l app=api-gateway -n $env:NAMESPACE --ignore-not-found }
+          if ("${{ steps.changes.outputs.user }}" -eq "true") { kubectl delete pod -l app=user-service -n $env:NAMESPACE --ignore-not-found }
+          if ("${{ steps.changes.outputs.restaurant }}" -eq "true") { kubectl delete pod -l app=restaurant-service -n $env:NAMESPACE --ignore-not-found }
+          if ("${{ steps.changes.outputs.order }}" -eq "true") { kubectl delete pod -l app=order-service -n $env:NAMESPACE --ignore-not-found }
+          if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl delete pod -l app=payment-service -n $env:NAMESPACE --ignore-not-found }
+          if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl delete pod -l app=api-gateway -n $env:NAMESPACE --ignore-not-found }
 
           Write-Host "Updating images to commit SHA only for changed services..."
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('user-service/')) { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('restaurant-service/')) { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('order-service/')) { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('payment-service/')) { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('api-gateway/')) { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE }
-          if ($env:CHANGED_PATHS -and $env:CHANGED_PATHS.Contains('frontend/')) { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.user }}" -eq "true") { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.restaurant }}" -eq "true") { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.order }}" -eq "true") { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.frontend }}" -eq "true") { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE }
 
       - name: Wait for deployments to be ready
         shell: powershell
-        env:
-          CHANGED_PATHS: ${{ steps.changes.outputs.changed }}
         run: |
           Write-Host "Waiting for changed services to be ready..."
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
           $failed = @()
           $checkDeploys = @()
-          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('user-service/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'user-service' }
-          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('restaurant-service/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'restaurant-service' }
-          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('order-service/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'order-service' }
-          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('payment-service/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'payment-service' }
-          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('api-gateway/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'api-gateway' }
-          if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('frontend/') -or $env:CHANGED_PATHS.Contains('k8s/'))) { $checkDeploys += 'frontend' }
+          if ("${{ steps.changes.outputs.user }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'user-service' }
+          if ("${{ steps.changes.outputs.restaurant }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'restaurant-service' }
+          if ("${{ steps.changes.outputs.order }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'order-service' }
+          if ("${{ steps.changes.outputs.payment }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'payment-service' }
+          if ("${{ steps.changes.outputs.gateway }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'api-gateway' }
+          if ("${{ steps.changes.outputs.frontend }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'frontend' }
           if ($checkDeploys.Count -eq 0) { Write-Host 'No deployments changed, skipping rollout check.'; return }
           foreach ($d in $checkDeploys) {
             kubectl rollout status deployment/$d -n $env:NAMESPACE --timeout=5m
