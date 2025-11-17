@@ -218,8 +218,16 @@ jobs:
           else
             CHANGED="all"
           fi
+          
+          # Filter out documentation and workflow files, keep only source code
+          if [ "$CHANGED" != "all" ]; then
+            FILTERED=$(echo "$CHANGED" | grep -E '\.(java|ts|js|html|css|scss|json|xml|yml|yaml|properties|sql|Dockerfile)$|^(src/|frontend/|user-service/|order-service/|restaurant-service/|payment-service/|api-gateway/|mysql-init/|k8s/)' | grep -v -E '\.github/|\.md$|\.txt$' || echo "")
+            CHANGED="$FILTERED"
+          fi
+          
           echo "changed=$CHANGED" >> $GITHUB_OUTPUT
           echo "Changed files:"
+          echo "$CHANGED"
           echo "$CHANGED"
 
       - name: Build and Push user-service
@@ -320,6 +328,21 @@ jobs:
             } catch {
               $CHANGED_FILES = git diff-tree --no-commit-id --name-only -r HEAD
             }
+          } else {
+            $CHANGED_FILES = "all"
+          }
+
+          # Filter out documentation and workflow files, keep only source code
+          if ($CHANGED_FILES -ne "all") {
+            $FILTERED = $CHANGED_FILES | Where-Object {
+              $_ -match '\.(java|ts|js|html|css|scss|json|xml|yml|yaml|properties|sql|Dockerfile)$' -or
+              $_ -match '^(src/|frontend/|user-service/|order-service/|restaurant-service/|payment-service/|api-gateway/|mysql-init/|k8s/)' -and
+              $_ -notmatch '\.github/' -and
+              $_ -notmatch '\.md$' -and
+              $_ -notmatch '\.txt$'
+            }
+            $CHANGED_FILES = ($FILTERED -join "`n").Trim()
+            if (-not $CHANGED_FILES) { $CHANGED_FILES = "" }
           }
 
           # Clean up and join with spaces
@@ -327,7 +350,7 @@ jobs:
 
           Write-Host "Changed files:"
           Write-Host $CHANGED_FILES
-          Write-Host "Cleaned: $CHANGED_CLEAN"
+          Write-Host "Filtered: $CHANGED_CLEAN"
 
           # Set outputs
           echo "CHANGED_PATHS=$CHANGED_CLEAN" >> $env:GITHUB_ENV
@@ -347,10 +370,44 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Checking kubectl connection..."
-          kubectl version --client=true
-          kubectl config current-context
-          kubectl cluster-info
-          kubectl get nodes
+          
+          # Retry kubectl commands up to 3 times with 30-second delays
+          $maxRetries = 3
+          $retryCount = 0
+          $success = $false
+          
+          while ($retryCount -lt $maxRetries -and -not $success) {
+            try {
+              Write-Host "Attempt $($retryCount + 1) of $maxRetries..."
+              
+              kubectl version --client=true
+              if ($LASTEXITCODE -ne 0) { throw "kubectl version failed" }
+              
+              kubectl config current-context
+              if ($LASTEXITCODE -ne 0) { throw "kubectl config failed" }
+              
+              kubectl cluster-info
+              if ($LASTEXITCODE -ne 0) { throw "kubectl cluster-info failed" }
+              
+              kubectl get nodes
+              if ($LASTEXITCODE -ne 0) { throw "kubectl get nodes failed" }
+              
+              $success = $true
+              Write-Host "kubectl connection verified successfully."
+            } catch {
+              Write-Host "Attempt $($retryCount + 1) failed: $_"
+              $retryCount++
+              if ($retryCount -lt $maxRetries) {
+                Write-Host "Waiting 30 seconds before retry..."
+                Start-Sleep -Seconds 30
+              }
+            }
+          }
+          
+          if (-not $success) {
+            Write-Host "Failed to connect to kubectl after $maxRetries attempts. Please ensure Docker Desktop is running and Kubernetes is enabled."
+            exit 1
+          }
 
       - name: Prepare MySQL Deployment
         shell: powershell
