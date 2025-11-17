@@ -224,6 +224,17 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED"
           
+          # Check if only workflow/k8s files changed (no code changes)
+          WORKFLOW_ONLY="false"
+          if echo "$CHANGED" | grep -qE '^\.github/|^k8s/'; then
+            if ! echo "$CHANGED" | grep -qE '\.(java|xml|properties|ts|js|html|css|scss|json|Dockerfile)'; then
+              WORKFLOW_ONLY="true"
+              echo "Only workflow/k8s files changed - will skip image build but allow deploy"
+            fi
+          fi
+          
+          echo "workflow_only=$WORKFLOW_ONLY" >> $GITHUB_OUTPUT
+          
           # Determine which services changed (ignore docs/workflows)
           if [ "$CHANGED" == "all" ]; then
             echo "user=true" >> $GITHUB_OUTPUT
@@ -348,6 +359,7 @@ jobs:
     needs: build-images
     runs-on: self-hosted
     environment: staging
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
     permissions:
       contents: read
 
@@ -377,6 +389,28 @@ jobs:
 
           Write-Host "Changed files:"
           Write-Host $CHANGED
+
+          # Check if only workflow/k8s files changed (no code changes)
+          $WORKFLOW_ONLY = $false
+          if ($CHANGED -match '\.github/|k8s/') {
+            if ($CHANGED -notmatch '\.(java|xml|properties|ts|js|html|css|scss|json|Dockerfile)') {
+              $WORKFLOW_ONLY = $true
+              Write-Host "Only workflow/k8s files changed - will use existing images with :latest tag"
+              # Set all services to true to trigger redeploy with existing images
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=false"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "workflow_only=true"
+              return
+            }
+          }
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "workflow_only=false"
 
           # Determine which services changed (ignore docs/workflows)
           if ($CHANGED -eq "all") {
@@ -575,13 +609,22 @@ jobs:
           if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl delete pod -l app=payment-service -n $env:NAMESPACE --ignore-not-found }
           if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl delete pod -l app=api-gateway -n $env:NAMESPACE --ignore-not-found }
 
-          Write-Host "Updating images to commit SHA only for changed services..."
-          if ("${{ steps.changes.outputs.user }}" -eq "true") { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.restaurant }}" -eq "true") { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.order }}" -eq "true") { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:${{ github.sha }} -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:${{ github.sha }} -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.frontend }}" -eq "true") { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:${{ github.sha }} -n $env:NAMESPACE }
+          # Determine which image tag to use
+          $imageTag = "${{ github.sha }}"
+          if ("${{ steps.changes.outputs.workflow_only }}" -eq "true") {
+            $imageTag = "latest"
+            Write-Host "Using :latest tag (workflow/k8s only changes, no new images built)"
+          } else {
+            Write-Host "Using :$imageTag tag (new images were built)"
+          }
+
+          Write-Host "Updating images to $imageTag for changed services..."
+          if ("${{ steps.changes.outputs.user }}" -eq "true") { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:$imageTag -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.restaurant }}" -eq "true") { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:$imageTag -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.order }}" -eq "true") { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:$imageTag -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:$imageTag -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:$imageTag -n $env:NAMESPACE }
+          if ("${{ steps.changes.outputs.frontend }}" -eq "true") { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:$imageTag -n $env:NAMESPACE }
 
       - name: Wait for deployments to be ready
         shell: powershell
