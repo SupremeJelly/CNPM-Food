@@ -339,25 +339,18 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      # Set up kubectl and configure KUBECONFIG (requires KUBE_CONFIG_DATA secret)
+      # Set up kubectl (using Docker Desktop's default kubeconfig)
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
-      - name: Configure kubeconfig
+      - name: Verify kubectl connection
         shell: powershell
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
         run: |
-          $kubeDir = Join-Path $HOME ".kube"
-          New-Item -ItemType Directory -Path $kubeDir -Force | Out-Null
-          if ($env:KUBE_CONFIG_DATA -and $env:KUBE_CONFIG_DATA.Trim().Length -gt 0) {
-            [System.IO.File]::WriteAllBytes((Join-Path $kubeDir "config"), [System.Convert]::FromBase64String($env:KUBE_CONFIG_DATA))
-          } else {
-            Write-Host "KUBE_CONFIG_DATA not set; using existing kubeconfig on runner"
-          }
+          Write-Host "Checking kubectl connection..."
           kubectl version --client=true
           kubectl config current-context
           kubectl cluster-info
+          kubectl get nodes
 
       - name: Prepare MySQL Deployment
         shell: powershell
