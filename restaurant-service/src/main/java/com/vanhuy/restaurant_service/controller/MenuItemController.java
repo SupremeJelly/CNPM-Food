@@ -38,15 +38,15 @@ public class MenuItemController {
         return ResponseEntity.ok(createdMenuItem);
     }
 
-    // @GetMapping("/restaurant/{restaurantId}")
-    // public ResponseEntity<List<OrderItemDTO>> getMenuItemsByRestaurantId(@PathVariable Integer restaurantId) {
-    //     Restaurant restaurant = restaurantService.getRestaurantById(restaurantId);
-    //     if (restaurant == null) {
-    //         return ResponseEntity.notFound().build();
-    //     }
-    //     List<OrderItemDTO> menuItems = menuItemService.getMenuItemsByRestaurantId(restaurant);
-    //     return ResponseEntity.ok(menuItems);
-    // }
+    @GetMapping("/restaurant/{restaurantId}")
+    public ResponseEntity<List<OrderItemDTO>> getMenuItemsByRestaurantId(@PathVariable Integer restaurantId) {
+        Restaurant restaurant = restaurantService.getRestaurantById(restaurantId);
+        if (restaurant == null) {
+            return ResponseEntity.notFound().build();
+        }
+        List<OrderItemDTO> menuItems = menuItemService.getMenuItemsByRestaurantId(restaurant);
+        return ResponseEntity.ok(menuItems);
+    }
 
     @PostMapping("/{menuItemId}/upload-image")
     public ResponseEntity<OrderItemDTO> uploadImage(
