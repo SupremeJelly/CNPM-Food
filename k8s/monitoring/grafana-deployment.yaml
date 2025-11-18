@@ -406,7 +406,7 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: grafana/grafana:10.1.0
+        image: grafana/grafana:latest
         ports:
         - containerPort: 3000
           name: http
