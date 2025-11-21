@@ -1,0 +1,56 @@
+---
+# Grafana dashboard (ConfigMap) for GitHub exporter (Prometheus metrics)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-github
+  namespace: monitoring
+data:
+  github-exporter-dashboard.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "uid": "github-exporter",
+      "title": "GitHub Exporter - CNPM Food",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Exporter Up",
+          "datasource": "Prometheus",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "targets": [ { "expr": "up{job=~\"github-exporter.*\"}", "refId": "A" } ]
+        },
+        {
+          "type": "timeseries",
+          "title": "GitHub API Request Rate",
+          "datasource": "Prometheus",
+          "gridPos": {"h": 6, "w": 12, "x": 6, "y": 0},
+          "targets": [ { "expr": "rate(github_requests_total[5m])", "refId": "A" } ]
+        },
+        {
+          "type": "timeseries",
+          "title": "GitHub API Error Rate",
+          "datasource": "Prometheus",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 6},
+          "targets": [ { "expr": "rate(github_requests_errors_total[5m])", "refId": "A" } ]
+        },
+        {
+          "type": "gauge",
+          "title": "Rate Limit Remaining",
+          "datasource": "Prometheus",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 12},
+          "targets": [ { "expr": "github_rate_limit_remaining", "refId": "A" } ]
+        },
+        {
+          "type": "timeseries",
+          "title": "GitHub Call Latency (p95)",
+          "datasource": "Prometheus",
+          "gridPos": {"h": 6, "w": 12, "x": 6, "y": 12},
+          "targets": [ { "expr": "histogram_quantile(0.95, sum(rate(github_request_duration_seconds_bucket[5m])) by (le))", "refId": "A" } ]
+        }
+      ],
+      "templating": {"list": []},
+      "time": {"from": "now-1h", "to": "now"}
+    }
