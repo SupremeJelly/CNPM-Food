@@ -114,10 +114,10 @@ jobs:
             onlykohi/cnpm-frontend:${{ github.sha }}
 
       - name: Build and Push github-exporter
-        if: ${{ steps.changes.outputs.changed != '' && (contains(steps.changes.outputs.changed, 'monitoring/github-exporter/') || contains(steps.changes.outputs.changed, 'k8s/monitoring/github-exporter.yaml')) }}
+        if: ${{ steps.changes.outputs.changed != '' && (contains(steps.changes.outputs.changed, 'k8s/monitoring/github-exporter/') || contains(steps.changes.outputs.changed, 'k8s/monitoring/github-exporter.yaml')) }}
         uses: docker/build-push-action@v5
         with:
-          context: ./monitoring/github-exporter
+          context: ./k8s/monitoring/github-exporter
           push: true
           tags: |
             onlykohi/github-exporter:latest
@@ -190,7 +190,7 @@ jobs:
             Write-Host "Applying monitoring manifests from k8s/monitoring..."
             kubectl apply -n monitoring -f k8s/monitoring
             # If github-exporter changed, update its image to the built tag
-            if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('monitoring/github-exporter/') -or $env:CHANGED_PATHS.Contains('k8s/monitoring/github-exporter.yaml'))) {
+            if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('k8s/monitoring/github-exporter/') -or $env:CHANGED_PATHS.Contains('k8s/monitoring/github-exporter.yaml'))) {
               Write-Host "Removing existing github-exporter pods to avoid conflicts"
                 # ensure old pods are removed before updating image
                 kubectl delete pod -l app=github-exporter -n monitoring --ignore-not-found || true
