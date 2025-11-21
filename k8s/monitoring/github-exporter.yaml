@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-exporter
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-exporter
+  template:
+    metadata:
+      labels:
+        app: github-exporter
+    spec:
+      containers:
+      - name: exporter
+        image: ghcr.io/you/github-exporter:latest
+        ports:
+        - containerPort: 9118
+        env:
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-secret
+              key: token
+        # Prometheus annotations alternative: use Service below
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: github-exporter
+  namespace: monitoring
+  labels:
+    app: github-exporter
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9118"
+spec:
+  ports:
+  - port: 9118
+    targetPort: 9118
+    protocol: TCP
+    name: metrics
+  selector:
+    app: github-exporter
