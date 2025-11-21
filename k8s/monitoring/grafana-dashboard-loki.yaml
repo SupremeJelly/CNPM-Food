@@ -1,0 +1,38 @@
+---
+# Simple Grafana dashboard for Loki logs
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-loki
+  namespace: monitoring
+data:
+  loki-logs-dashboard.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "uid": "loki-logs",
+      "title": "Logs - CNPM Food",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": [
+        {
+          "type": "logs",
+          "title": "Recent Logs (cnpm-food namespace)",
+          "datasource": "Loki",
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+          "options": {
+            "showLabels": true,
+            "showTime": true,
+            "wrapLogMessage": false
+          },
+          "targets": [
+            {
+              "expr": "{namespace=\"cnpm-food\"}",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "templating": {"list": []},
+      "time": {"from": "now-1h", "to": "now"}
+    }
