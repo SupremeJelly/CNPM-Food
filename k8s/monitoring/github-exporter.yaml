@@ -12,6 +12,9 @@ spec:
     metadata:
       labels:
         app: github-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9118"
     spec:
       containers:
       - name: exporter
