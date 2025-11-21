@@ -191,9 +191,12 @@ jobs:
             kubectl apply -n monitoring -f k8s/monitoring
             # If github-exporter changed, update its image to the built tag
             if ($env:CHANGED_PATHS -and ($env:CHANGED_PATHS.Contains('monitoring/github-exporter/') -or $env:CHANGED_PATHS.Contains('k8s/monitoring/github-exporter.yaml'))) {
-              Write-Host "Updating github-exporter image to onlykohi/github-exporter:${{ github.sha }}"
-              kubectl set image deployment/github-exporter exporter=onlykohi/github-exporter:${{ github.sha }} -n monitoring
-              kubectl rollout status deployment/github-exporter -n monitoring --timeout=120s
+              Write-Host "Removing existing github-exporter pods to avoid conflicts"
+                # ensure old pods are removed before updating image
+                kubectl delete pod -l app=github-exporter -n monitoring --ignore-not-found || true
+                Write-Host "Updating github-exporter image to onlykohi/github-exporter:${{ github.sha }}"
+                kubectl set image deployment/github-exporter exporter=onlykohi/github-exporter:${{ github.sha }} -n monitoring
+                kubectl rollout status deployment/github-exporter -n monitoring --timeout=120s
             }
           } else {
             Write-Host "No monitoring manifests found at k8s/monitoring; skipping monitoring deploy."
