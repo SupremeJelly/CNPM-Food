@@ -16,6 +16,7 @@ spec:
       containers:
       - name: exporter
         image: ghcr.io/you/github-exporter:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9118
         env:
