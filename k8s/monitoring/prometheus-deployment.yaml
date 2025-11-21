@@ -127,6 +127,11 @@ data:
             action: replace
             target_label: namespace
 
+      # Scrape Loki service directly (loki-stack:3100)
+      - job_name: 'loki'
+        static_configs:
+          - targets: ['loki-stack.monitoring.svc.cluster.local:3100']
+
 ---
 # Prometheus Deployment
 apiVersion: apps/v1
