@@ -1,0 +1,63 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-logs
+  namespace: monitoring
+data:
+  loki-logs-tail.json: |
+    {
+      "uid": "loki-logs-tail",
+      "title": "Loki - Recent Logs (cnpm-food)",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": [
+        {
+          "type": "logs",
+          "title": "Recent Logs (cnpm-food)",
+          "datasource": "Loki",
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+          "options": {"showLabels": true, "showTime": true, "wrapLogMessage": false},
+          "targets": [
+            {"expr": "{namespace=\"cnpm-food\"}", "refId": "A"}
+          ]
+        }
+      ],
+      "templating": {"list": []},
+      "time": {"from": "now-1h", "to": "now"}
+    }
+  loki-logs-metrics.json: |
+    {
+      "uid": "loki-logs-metrics",
+      "title": "Loki - Error & Volume Metrics",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Error Rate (5m)",
+          "datasource": "Loki",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
+          "targets": [
+            {
+              "expr": "count_over_time({namespace=\"cnpm-food\"} |= \"ERROR\"[5m])",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Log Volume (5m)",
+          "datasource": "Loki",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 0},
+          "targets": [
+            {
+              "expr": "count_over_time({namespace=\"cnpm-food\"}[5m])",
+              "refId": "B"
+            }
+          ]
+        }
+      ],
+      "templating": {"list": []},
+      "time": {"from": "now-6h", "to": "now"}
+    }

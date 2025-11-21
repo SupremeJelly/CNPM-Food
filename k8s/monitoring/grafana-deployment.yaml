@@ -437,6 +437,12 @@ spec:
           mountPath: /var/lib/grafana/dashboards/default
         - name: grafana-dashboards-advanced
           mountPath: /var/lib/grafana/dashboards/microservices
+        - name: grafana-dashboards-github
+          mountPath: /var/lib/grafana/dashboards/github
+        - name: grafana-dashboards-loki
+          mountPath: /var/lib/grafana/dashboards/loki
+        - name: grafana-dashboards-logs
+          mountPath: /var/lib/grafana/dashboards/logs
         resources:
           requests:
             memory: "256Mi"
@@ -459,6 +465,15 @@ spec:
       - name: grafana-dashboards-advanced
         configMap:
           name: grafana-dashboard-microservices
+      - name: grafana-dashboards-github
+        configMap:
+          name: grafana-dashboard-github
+      - name: grafana-dashboards-loki
+        configMap:
+          name: grafana-dashboard-loki
+      - name: grafana-dashboards-logs
+        configMap:
+          name: grafana-dashboard-logs
 
 ---
 # Grafana Service
