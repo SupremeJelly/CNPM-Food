@@ -28,6 +28,14 @@ spec:
             secretKeyRef:
               name: github-secret
               key: token
+        - name: LOKI_PUSH_URL
+          value: "http://loki-stack.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        # If Loki requires an auth header, create a secret `github-exporter-loki-secret` with key `auth`
+        - name: LOKI_AUTH_HEADER
+          valueFrom:
+            secretKeyRef:
+              name: github-exporter-loki-secret
+              key: auth
         # Prometheus annotations alternative: use Service below
 ---
 apiVersion: v1
