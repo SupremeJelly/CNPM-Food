@@ -1,0 +1,13 @@
+name: Force Fail Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fail_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show failing message
+        run: |
+          echo "This workflow is intentionally failing for testing exporter."
+          exit 1
