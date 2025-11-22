@@ -420,10 +420,12 @@ spec:
         - containerPort: 3000
           name: http
         env:
-        # Remove embedded admin credentials so users can sign up/login via the web UI.
-        # If you want to allow users to self-register, enable signup below.
+        - name: GF_SECURITY_ADMIN_USER
+          value: "admin"
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"
         - name: GF_USERS_ALLOW_SIGN_UP
-          value: "true"
+          value: "false"
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana
