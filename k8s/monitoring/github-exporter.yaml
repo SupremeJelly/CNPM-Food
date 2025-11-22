@@ -18,7 +18,8 @@ spec:
     spec:
       containers:
       - name: exporter
-        image: ghcr.io/you/github-exporter:latest
+        # use a known-working image tag on nodes; replace with your registry/image as needed
+        image: onlykohi/github-exporter:8376db06
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9118
@@ -30,12 +31,11 @@ spec:
               key: token
         - name: LOKI_PUSH_URL
           value: "http://loki-stack.monitoring.svc.cluster.local:3100/loki/api/v1/push"
-        # If Loki requires an auth header, create a secret `github-exporter-loki-secret` with key `auth`
-        - name: LOKI_AUTH_HEADER
-          valueFrom:
-            secretKeyRef:
-              name: github-exporter-loki-secret
-              key: auth
+        # If Loki requires an auth header, create a secret `github-exporter-loki-secret` with key `auth` and
+        # add it back here. For now we remove the LOKI_AUTH_HEADER reference to avoid CreateContainerConfigError.
+        # To enable workflow metrics, set `GITHUB_REPO` below to the repo you want to monitor, e.g. "owner/repo".
+        - name: GITHUB_REPO
+          value: "SupremeJelly/CNPM-Food"
         # Prometheus annotations alternative: use Service below
 ---
 apiVersion: v1
