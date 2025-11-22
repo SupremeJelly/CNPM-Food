@@ -37,14 +37,19 @@ jobs:
 
       - name: Run tests for ${{ matrix.service }}
         working-directory: ./${{ matrix.service }}
-        run: mvn clean test -B
+        run: |
+          # Run unit tests and integration tests
+          # mvn verify runs: compile -> test (unit tests with surefire) -> package -> integration-test (integration tests with failsafe) -> verify
+          mvn clean verify -B
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.service }}
-          path: ${{ matrix.service }}/target/surefire-reports/
+          path: |
+            ${{ matrix.service }}/target/surefire-reports/
+            ${{ matrix.service }}/target/failsafe-reports/
           retention-days: 7
 
   test-frontend:
@@ -705,8 +710,8 @@ jobs:
               echo "### $SERVICE" >> $GITHUB_STEP_SUMMARY
               
               if [ -f "$dir"/*.xml ]; then
-                TESTS=$(grep -r "tests=" "$dir" | head -1 | sed 's/.*tests="\([0-9]*\)".*/\1/' || echo "N/A")
-                FAILURES=$(grep -r "failures=" "$dir" | head -1 | sed 's/.*failures="\([0-9]*\)".*/\1/' || echo "0")
+                TESTS=$(grep -r "tests=" "$dir" | awk -F'"' '{sum += $2} END {print sum}' || echo "N/A")
+                FAILURES=$(grep -r "failures=" "$dir" | awk -F'"' '{sum += $2} END {print sum}' || echo "0")
                 echo "- Tests: $TESTS" >> $GITHUB_STEP_SUMMARY
                 echo "- Failures: $FAILURES" >> $GITHUB_STEP_SUMMARY
               else
