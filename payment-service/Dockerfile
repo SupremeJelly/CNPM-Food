@@ -7,8 +7,8 @@ COPY pom.xml ./
 COPY mvnw ./
 COPY .mvn .mvn
 
-# download dependencies
-RUN mvn -B dependency:go-offline
+# download dependencies (commented out to avoid Maven Central 500 errors in CI)
+# RUN mvn -B dependency:go-offline
 
 # copy sources and build
 COPY src ./src
