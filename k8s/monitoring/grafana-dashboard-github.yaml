@@ -80,6 +80,43 @@ data:
               "unit": "dateTimeAsIso"
             }
           }
+        },
+        {
+          "type": "table",
+          "title": "Failed Test Cases",
+          "datasource": "Prometheus",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+          "targets": [ { "expr": "github_workflow_testcase_failed_total", "refId": "A", "format": "table", "instant": true } ],
+          "options": {
+            "showHeader": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            }
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true, "__name__": true},
+                "indexByName": {"workflow": 0, "job": 1, "testcase": 2, "Value": 3},
+                "renameByName": {"Value": "Failures"}
+              }
+            }
+          ]
+        },
+        {
+          "type": "logs",
+          "title": "Failure Details (Steps & Tests)",
+          "datasource": "Loki",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+          "targets": [ { "expr": "{app=\"github-exporter\"} |= \"FAILED\" or \"TEST_FAIL\"", "refId": "A" } ],
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending"
+          }
         }
       ],
       "templating": {"list": []},
