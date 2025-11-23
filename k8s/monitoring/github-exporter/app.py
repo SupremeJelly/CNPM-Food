@@ -26,6 +26,10 @@ LOKI_PUSHES = Counter('github_loki_pushes_total', 'Total number of pushes made t
 # Testcase metrics
 TESTCASE_TOTAL = Counter('github_workflow_testcase_total', 'Total testcases observed for a failing job', ['workflow', 'job'])
 TESTCASE_FAILED = Counter('github_workflow_testcase_failed_total', 'Failed testcase occurrences', ['workflow', 'job', 'testcase'])
+# Additional metrics for better visibility
+G_TOTAL_FAILING_WORKFLOWS = Gauge('github_total_failing_workflows', 'Total number of workflows with failures')
+G_TOTAL_FAILING_JOBS = Gauge('github_total_failing_jobs', 'Total number of failing jobs across all workflows')
+STEP_FAILED = Counter('github_workflow_step_failed_total', 'Failed step occurrences', ['workflow', 'job', 'step'])
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 GITHUB_REPO = os.environ.get('GITHUB_REPO')  # expected form: owner/repo
 LOKI_PUSH_URL = os.environ.get('LOKI_PUSH_URL')
@@ -129,7 +133,13 @@ def poll_loop():
                                                         for step in job.get('steps', []):
                                                             if step.get('conclusion') and step.get('conclusion') != 'success':
                                                                 step_name = step.get('name') or str(step.get('number'))
-                                                                messages.append(f"  step={step_name} conclusion={step.get('conclusion')}")
+                                                                step_conclusion = step.get('conclusion')
+                                                                messages.append(f"  step={step_name} conclusion={step_conclusion}")
+                                                                # Track failed steps
+                                                                try:
+                                                                    STEP_FAILED.labels(workflow=wf_name, job=job_name, step=step_name).inc()
+                                                                except Exception:
+                                                                    pass
                                                         # If job does not include steps, include link to run logs
                                                         if len(messages) == 1:
                                                             messages.append(f"  (see run logs at {run_url})")
@@ -232,6 +242,14 @@ def poll_loop():
                         except Exception:
                             pass
                     prev_failed_jobs = current_failed
+                    
+                    # Update summary gauges
+                    try:
+                        unique_workflows = set(wf for wf, _ in current_failed)
+                        G_TOTAL_FAILING_WORKFLOWS.set(len(unique_workflows))
+                        G_TOTAL_FAILING_JOBS.set(len(current_failed))
+                    except Exception:
+                        pass
                 except Exception:
                     # don't let workflow polling break the main loop
                     pass
