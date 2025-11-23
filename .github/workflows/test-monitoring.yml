@@ -1,0 +1,55 @@
+name: Test Monitoring
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [src]
+    paths:
+      - '.github/workflows/test-monitoring.yml'
+
+jobs:
+  test-success:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Success step
+        run: echo "This step passes"
+      
+      - name: Run some tests
+        run: |
+          echo "Running test suite..."
+          echo "Test 1: PASSED"
+          echo "Test 2: PASSED"
+          echo "All tests passed!"
+
+  test-with-failure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup
+        run: echo "Setting up test environment"
+      
+      - name: Run failing tests
+        run: |
+          echo "Running test suite..."
+          echo "Test 1: PASSED"
+          echo "Test 2: FAILED - Assertion error"
+          echo "Test 3: PASSED"
+          echo "FAILURE: 1 out of 3 tests failed"
+          exit 1
+      
+      - name: Cleanup (will not run)
+        if: always()
+        run: echo "Cleanup completed"
+
+  test-java-style-failure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Simulate Java test failure
+        run: |
+          echo "[ERROR] Tests run: 10, Failures: 2, Errors: 1, Skipped: 0"
+          echo "[ERROR] testUserRegistration(com.vanhuy.user.UserServiceTest) FAILED"
+          echo "[ERROR] testOrderCreation(com.vanhuy.order.OrderServiceTest) ERROR"
+          echo "[ERROR] BUILD FAILURE"
+          exit 1
