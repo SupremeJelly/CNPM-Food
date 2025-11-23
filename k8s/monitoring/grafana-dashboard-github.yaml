@@ -53,69 +53,200 @@ data:
         ,
         {
           "type": "table",
-          "title": "Workflow Failing Jobs",
+          "title": "🔴 Workflow Failing Jobs",
           "datasource": "Prometheus",
-          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 18},
-          "targets": [ { "expr": "github_workflow_failed_job", "refId": "A" } ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 18},
+          "targets": [ { 
+            "expr": "github_workflow_failed_job == 1", 
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          } ],
           "options": {
-            "showHeader": true
+            "showHeader": true,
+            "sortBy": [{"displayName": "Time", "desc": true}]
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
-            }
-          }
-        },
-        {
-          "type": "stat",
-          "title": "Last Failed Time (per workflow)",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 18},
-          "targets": [ { "expr": "github_workflow_last_failed_timestamp_seconds", "refId": "A" } ],
-          "options": {
-            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "avg" }
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "dateTimeAsIso"
-            }
-          }
-        },
-        {
-          "type": "table",
-          "title": "Failed Test Cases",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
-          "targets": [ { "expr": "github_workflow_testcase_failed_total", "refId": "A", "format": "table", "instant": true } ],
-          "options": {
-            "showHeader": true
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            }
+              "unit": "short",
+              "custom": {
+                "width": "auto"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "workflow"},
+                "properties": [
+                  {"id": "custom.width", "value": 250},
+                  {"id": "custom.displayMode", "value": "color-background"},
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-red"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "job"},
+                "properties": [
+                  {"id": "custom.width", "value": 250},
+                  {"id": "custom.displayMode", "value": "color-background"},
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-orange"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Value"},
+                "properties": [
+                  {"id": "custom.width", "value": 80},
+                  {"id": "custom.displayMode", "value": "color-text"},
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}},
+                  {"id": "mappings", "value": [{"type": "value", "options": {"1": {"text": "FAILED", "color": "red"}}}]}
+                ]
+              }
+            ]
           },
           "transformations": [
             {
               "id": "organize",
               "options": {
-                "excludeByName": {"Time": true, "__name__": true},
+                "excludeByName": {"Time": true, "__name__": true, "instance": true, "job": false},
+                "indexByName": {"workflow": 0, "job": 1, "Value": 2},
+                "renameByName": {"Value": "Status", "workflow": "Workflow", "job": "Job Name"}
+              }
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "title": "⏰ Last Failed Time (per workflow)",
+          "datasource": "Prometheus",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 18},
+          "targets": [ { 
+            "expr": "github_workflow_last_failed_timestamp_seconds * 1000", 
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          } ],
+          "options": {
+            "showHeader": true,
+            "sortBy": [{"displayName": "Last Failed", "desc": true}]
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "workflow"},
+                "properties": [
+                  {"id": "custom.width", "value": 300},
+                  {"id": "custom.displayMode", "value": "color-background"},
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-blue"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Value"},
+                "properties": [
+                  {"id": "unit", "value": "dateTimeAsIso"},
+                  {"id": "custom.width", "value": 200},
+                  {"id": "custom.displayMode", "value": "color-background"},
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-purple"}}
+                ]
+              }
+            ]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true},
+                "indexByName": {"workflow": 0, "Value": 1},
+                "renameByName": {"Value": "Last Failed", "workflow": "Workflow Name"}
+              }
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "title": "🧪 Failed Test Cases",
+          "datasource": "Prometheus",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 26},
+          "targets": [ { 
+            "expr": "github_workflow_testcase_failed_total > 0", 
+            "refId": "A", 
+            "format": "table", 
+            "instant": true 
+          } ],
+          "options": {
+            "showHeader": true,
+            "sortBy": [{"displayName": "Failures", "desc": true}]
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "workflow"},
+                "properties": [
+                  {"id": "custom.width", "value": 150}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "job"},
+                "properties": [
+                  {"id": "custom.width", "value": 150}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "testcase"},
+                "properties": [
+                  {"id": "custom.width", "value": 350},
+                  {"id": "custom.displayMode", "value": "color-background"},
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-red"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Value"},
+                "properties": [
+                  {"id": "custom.width", "value": 100},
+                  {"id": "custom.displayMode", "value": "color-text"},
+                  {"id": "color", "value": {"mode": "thresholds"}},
+                  {"id": "thresholds", "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {"value": null, "color": "green"},
+                      {"value": 1, "color": "red"}
+                    ]
+                  }}
+                ]
+              }
+            ]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true, "__name__": true, "instance": true},
                 "indexByName": {"workflow": 0, "job": 1, "testcase": 2, "Value": 3},
-                "renameByName": {"Value": "Failures"}
+                "renameByName": {"Value": "Failures", "workflow": "Workflow", "job": "Job", "testcase": "Test Case"}
               }
             }
           ]
         },
         {
           "type": "logs",
-          "title": "Failure Details (Steps & Tests)",
+          "title": "📋 Failure Details (Steps & Tests)",
           "datasource": "Loki",
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
-          "targets": [ { "expr": "{app=\"github-exporter\"} |= \"FAILED\" or \"TEST_FAIL\"", "refId": "A" } ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 26},
+          "targets": [ { 
+            "expr": "{app=\"github-exporter\"} |~ \"FAILED|TEST_FAIL\"", 
+            "refId": "A" 
+          } ],
           "options": {
             "showTime": true,
+            "showLabels": true,
+            "showCommonLabels": false,
             "wrapLogMessage": true,
-            "sortOrder": "Descending"
+            "sortOrder": "Descending",
+            "dedupStrategy": "none",
+            "enableLogDetails": true
           }
         }
       ],
