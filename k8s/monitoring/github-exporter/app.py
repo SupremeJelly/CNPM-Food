@@ -155,41 +155,108 @@ def poll_loop():
                                                                     try:
                                                                         with zipfile.ZipFile(bio) as z:
                                                                             test_failures = []
-                                                                            # regex to capture common test failure lines and test names
-                                                                            name_re = re.compile(r'(?:FAIL:|ERROR:|FAILED|=== FAIL:|AssertionError)\s*[:\s\-]*([A-Za-z0-9_\.\-:\/\(\)]+)')
-                                                                            short_msg_re = re.compile(r'(?m)^(?:FAIL:|ERROR:|FAILED|AssertionError|Traceback).*$', re.IGNORECASE)
+                                                                            test_stats = {'total': 0, 'passed': 0, 'failed': 0, 'errors': 0}
+                                                                            
                                                                             for fname in z.namelist():
                                                                                 try:
                                                                                     with z.open(fname) as f:
                                                                                         text = f.read().decode('utf-8', errors='ignore')
-                                                                                        # find lines indicating failures
-                                                                                        for m in short_msg_re.finditer(text):
-                                                                                            line = m.group(0).strip()
-                                                                                            # try extract a testcase name
-                                                                                            nm = None
-                                                                                            m2 = name_re.search(line)
-                                                                                            if m2:
-                                                                                                nm = m2.group(1)
-                                                                                            else:
-                                                                                                # try nearby context: look for a test function pattern
-                                                                                                ctx = re.search(r'(?m)^(?:test_[A-Za-z0-9_]+)', text)
-                                                                                                if ctx:
-                                                                                                    nm = ctx.group(0)
-                                                                                            if not nm:
-                                                                                                # fallback to truncated line as identifier
-                                                                                                nm = line[:80]
-                                                                                            # avoid duplicates
-                                                                                            if nm not in test_failures:
-                                                                                                test_failures.append(nm)
+                                                                                        
+                                                                                        # Parse structured format (TEST_RUN, TEST_STATUS, TEST_ERROR)
+                                                                                        lines = text.split('\n')
+                                                                                        current_test = None
+                                                                                        current_class = None
+                                                                                        
+                                                                                        for i, line in enumerate(lines):
+                                                                                            line = line.strip()
+                                                                                            
+                                                                                            # Parse test totals
+                                                                                            if line.startswith('TEST_TOTAL:'):
+                                                                                                try:
+                                                                                                    test_stats['total'] = int(line.split(':')[1].strip())
+                                                                                                except:
+                                                                                                    pass
+                                                                                            
+                                                                                            # Parse test run
+                                                                                            if line.startswith('TEST_RUN:'):
+                                                                                                current_test = line.split(':', 1)[1].strip()
+                                                                                            
+                                                                                            # Parse test class
+                                                                                            if line.startswith('TEST_CLASS:'):
+                                                                                                current_class = line.split(':', 1)[1].strip()
+                                                                                            
+                                                                                            # Parse test status
+                                                                                            if line.startswith('TEST_STATUS:'):
+                                                                                                status = line.split(':', 1)[1].strip()
+                                                                                                
+                                                                                                if status in ['FAIL', 'ERROR'] and current_test:
+                                                                                                    # Get error message from next line if exists
+                                                                                                    error_msg = ""
+                                                                                                    if i + 1 < len(lines) and lines[i + 1].strip().startswith('TEST_ERROR:'):
+                                                                                                        error_msg = lines[i + 1].split(':', 1)[1].strip()
+                                                                                                    
+                                                                                                    # Format test name
+                                                                                                    if current_class:
+                                                                                                        test_name = f"{current_test} ({current_class})"
+                                                                                                    else:
+                                                                                                        test_name = current_test
+                                                                                                    
+                                                                                                    # Add to failures if not duplicate
+                                                                                                    if test_name not in test_failures:
+                                                                                                        test_failures.append(test_name)
+                                                                                                    
+                                                                                                    if status == 'FAIL':
+                                                                                                        test_stats['failed'] += 1
+                                                                                                    elif status == 'ERROR':
+                                                                                                        test_stats['errors'] += 1
+                                                                                                
+                                                                                                elif status == 'PASS':
+                                                                                                    test_stats['passed'] += 1
+                                                                                                
+                                                                                                current_test = None
+                                                                                                current_class = None
+                                                                                            
+                                                                                            # Parse summary stats
+                                                                                            if line.startswith('TEST_PASSED:'):
+                                                                                                try:
+                                                                                                    test_stats['passed'] = int(line.split(':')[1].strip())
+                                                                                                except:
+                                                                                                    pass
+                                                                                            if line.startswith('TEST_FAILED:'):
+                                                                                                try:
+                                                                                                    test_stats['failed'] = int(line.split(':')[1].strip())
+                                                                                                except:
+                                                                                                    pass
+                                                                                            if line.startswith('TEST_ERRORS:'):
+                                                                                                try:
+                                                                                                    test_stats['errors'] = int(line.split(':')[1].strip())
+                                                                                                except:
+                                                                                                    pass
+                                                                                        
+                                                                                        # Fallback: Parse old format if no structured data found
+                                                                                        if not test_failures:
+                                                                                            old_pattern = re.compile(r'(?:FAIL:|ERROR:|FAILED)\s*[:\s\-]*([A-Za-z0-9_\.\-:\/\(\)]+)', re.IGNORECASE)
+                                                                                            for match in old_pattern.finditer(text):
+                                                                                                test_name = match.group(1)
+                                                                                                if test_name and test_name not in test_failures and len(test_name) > 3:
+                                                                                                    test_failures.append(test_name)
+                                                                                
                                                                                 except Exception:
                                                                                     pass
                                                                             # update metrics and also append to messages
-                                                                            if test_failures:
+                                                                            if test_failures or test_stats['total'] > 0:
+                                                                                # Add test summary to messages
+                                                                                if test_stats['total'] > 0:
+                                                                                    summary = f"TEST_SUMMARY: Total={test_stats['total']} Passed={test_stats['passed']} Failed={test_stats['failed']} Errors={test_stats['errors']}"
+                                                                                    messages.append(summary)
+                                                                                
                                                                                 # total observed
                                                                                 try:
                                                                                     TESTCASE_TOTAL.labels(workflow=wf_name, job=job_name).inc(len(test_failures))
                                                                                 except Exception:
                                                                                     pass
+                                                                                
+                                                                                # Add individual failing tests
                                                                                 for tc in test_failures:
                                                                                     try:
                                                                                         TESTCASE_FAILED.labels(workflow=wf_name, job=job_name, testcase=tc).inc()
