@@ -3,6 +3,9 @@ import time
 import threading
 import requests
 from prometheus_client import start_http_server, Gauge, Counter, Histogram
+import io
+import zipfile
+import re
 
 G_UP = Gauge('github_exporter_up', 'GitHub API up (1 = ok, 0 = failed)')
 G_RATE_REMAIN = Gauge('github_rate_limit_remaining', 'GitHub rate limit remaining')
@@ -18,6 +21,11 @@ REQ_DURATION = Histogram('github_request_duration_seconds', 'GitHub request dura
 G_WORKFLOW_FAILED = Gauge('github_workflow_failed_job', '1 when latest run failed and this job failed', ['workflow', 'job'])
 # Timestamp of the last failed run for a workflow (seconds since epoch)
 G_WORKFLOW_LAST_FAILED_TS = Gauge('github_workflow_last_failed_timestamp_seconds', 'Unix timestamp of the last failed run for a workflow', ['workflow'])
+# Counter for Loki pushes
+LOKI_PUSHES = Counter('github_loki_pushes_total', 'Total number of pushes made to Loki')
+# Testcase metrics
+TESTCASE_TOTAL = Counter('github_workflow_testcase_total', 'Total testcases observed for a failing job', ['workflow', 'job'])
+TESTCASE_FAILED = Counter('github_workflow_testcase_failed_total', 'Failed testcase occurrences', ['workflow', 'job', 'testcase'])
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 GITHUB_REPO = os.environ.get('GITHUB_REPO')  # expected form: owner/repo
 LOKI_PUSH_URL = os.environ.get('LOKI_PUSH_URL')
@@ -107,14 +115,81 @@ def poll_loop():
                                         if job.get('conclusion') != 'success':
                                                 job_name = job.get('name') or str(job.get('id'))
                                                 current_failed.add((wf_name, job_name))
-                                                # Inline: push a short summary to Loki if configured
+                                                # Inline: push a structured summary to Loki if configured
                                                 try:
                                                     if LOKI_PUSH_URL:
-                                                        # build a concise message
                                                         run_url = f"https://github.com/{owner_repo}/actions/runs/{run_id}"
-                                                        step = job.get('name')
-                                                        msg = f"FAILED: {wf_name} / {job_name} — url: {run_url}"
-                                                        # prepare Loki push payload
+                                                        # build list of messages: job header + failing steps (if present)
+                                                        messages = []
+                                                        header = f"FAILED: workflow={wf_name} job={job_name} run={run_url} repo={owner_repo}"
+                                                        messages.append(header)
+                                                        # include failing steps if the jobs API provided them
+                                                        for step in job.get('steps', []):
+                                                            if step.get('conclusion') and step.get('conclusion') != 'success':
+                                                                step_name = step.get('name') or str(step.get('number'))
+                                                                messages.append(f"  step={step_name} conclusion={step.get('conclusion')}")
+                                                        # If job does not include steps, include link to run logs
+                                                        if len(messages) == 1:
+                                                            messages.append(f"  (see run logs at {run_url})")
+
+                                                        # attempt to fetch job logs (zip) to extract failing testcases
+                                                        try:
+                                                            job_id = job.get('id')
+                                                            if job_id:
+                                                                logs_url = f'https://api.github.com/repos/{owner_repo}/actions/jobs/{job_id}/logs'
+                                                                lr = requests.get(logs_url, headers=HEADERS, timeout=60)
+                                                                if lr.status_code == 200:
+                                                                    bio = io.BytesIO(lr.content)
+                                                                    try:
+                                                                        with zipfile.ZipFile(bio) as z:
+                                                                            test_failures = []
+                                                                            # regex to capture common test failure lines and test names
+                                                                            name_re = re.compile(r'(?:FAIL:|ERROR:|FAILED|=== FAIL:|AssertionError)\s*[:\s\-]*([A-Za-z0-9_\.\-:\/\(\)]+)')
+                                                                            short_msg_re = re.compile(r'(?m)^(?:FAIL:|ERROR:|FAILED|AssertionError|Traceback).*$', re.IGNORECASE)
+                                                                            for fname in z.namelist():
+                                                                                try:
+                                                                                    with z.open(fname) as f:
+                                                                                        text = f.read().decode('utf-8', errors='ignore')
+                                                                                        # find lines indicating failures
+                                                                                        for m in short_msg_re.finditer(text):
+                                                                                            line = m.group(0).strip()
+                                                                                            # try extract a testcase name
+                                                                                            nm = None
+                                                                                            m2 = name_re.search(line)
+                                                                                            if m2:
+                                                                                                nm = m2.group(1)
+                                                                                            else:
+                                                                                                # try nearby context: look for a test function pattern
+                                                                                                ctx = re.search(r'(?m)^(?:test_[A-Za-z0-9_]+)', text)
+                                                                                                if ctx:
+                                                                                                    nm = ctx.group(0)
+                                                                                            if not nm:
+                                                                                                # fallback to truncated line as identifier
+                                                                                                nm = line[:80]
+                                                                                            # avoid duplicates
+                                                                                            if nm not in test_failures:
+                                                                                                test_failures.append(nm)
+                                                                                except Exception:
+                                                                                    pass
+                                                                            # update metrics and also append to messages
+                                                                            if test_failures:
+                                                                                # total observed
+                                                                                try:
+                                                                                    TESTCASE_TOTAL.labels(workflow=wf_name, job=job_name).inc(len(test_failures))
+                                                                                except Exception:
+                                                                                    pass
+                                                                                for tc in test_failures:
+                                                                                    try:
+                                                                                        TESTCASE_FAILED.labels(workflow=wf_name, job=job_name, testcase=tc).inc()
+                                                                                    except Exception:
+                                                                                        pass
+                                                                                    messages.append(f"TEST_FAIL: {tc}")
+                                                                    except zipfile.BadZipFile:
+                                                                        pass
+                                                        except Exception:
+                                                            pass
+
+                                                        # prepare Loki payload with one stream and multiple values (each a line)
                                                         ts_ns = str(int(time.time() * 1e9))
                                                         stream = {
                                                             "stream": {
@@ -124,14 +199,19 @@ def poll_loop():
                                                                 "run_id": str(run_id),
                                                                 "job": job_name
                                                             },
-                                                            "values": [[ts_ns, msg]]
+                                                            "values": [[ts_ns, msg] for msg in messages]
                                                         }
                                                         payload = {"streams": [stream]}
                                                         headers_loki = {"Content-Type": "application/json"}
                                                         if LOKI_AUTH_HEADER:
                                                             headers_loki["Authorization"] = LOKI_AUTH_HEADER
                                                         try:
-                                                            requests.post(LOKI_PUSH_URL, json=payload, headers=headers_loki, timeout=5)
+                                                            rpush = requests.post(LOKI_PUSH_URL, json=payload, headers=headers_loki, timeout=10)
+                                                            # increment counter on (attempt) — successful or not, we attempted a push
+                                                            try:
+                                                                LOKI_PUSHES.inc()
+                                                            except Exception:
+                                                                pass
                                                         except Exception:
                                                             pass
                                                 except Exception:

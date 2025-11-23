@@ -15,13 +15,15 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
         corsConfiguration.setAllowedOrigins(List.of(
-            "http://localhost:4200",  // Angular dev server
-            "http://localhost",        // Kubernetes frontend (port 80)
-            "http://localhost:80"      // Explicit port 80
+            "http://localhost:4200",
+            "http://localhost",
+            "http://localhost:80",
+            "https://cnpm-food-frontend.onrender.com",
+            "https://cnpm-food-api-gateway-lvu6.onrender.com"
         ));
         corsConfiguration.setAllowedHeaders(List.of("*"));
         corsConfiguration.setAllowedMethods(List.of("*"));
-        corsConfiguration.setAllowCredentials(true); // ✅ nếu bạn dùng cookie / JWT qua header
+        corsConfiguration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfiguration);
