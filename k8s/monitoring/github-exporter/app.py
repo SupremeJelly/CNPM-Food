@@ -41,9 +41,11 @@ if GITHUB_TOKEN:
 def poll_loop():
     # small cache to track previously-exposed failed (workflow,job) tuples
     prev_failed_jobs = set()
+    print("Entering poll loop...")
 
     while True:
         try:
+            print(f"[{time.strftime('%H:%M:%S')}] Polling GitHub API...")
             start = time.time()
             r = requests.get('https://api.github.com/rate_limit', headers=HEADERS, timeout=10)
             duration = time.time() - start
@@ -240,12 +242,23 @@ def poll_loop():
 
 
 if __name__ == '__main__':
+    print(f"Starting GitHub Exporter on port {PORT}")
+    print(f"GITHUB_TOKEN configured: {'Yes' if GITHUB_TOKEN else 'No'}")
+    print(f"GITHUB_REPO: {GITHUB_REPO}")
+    print(f"LOKI_PUSH_URL: {LOKI_PUSH_URL}")
+    print(f"POLL_INTERVAL: {POLL_INTERVAL}s")
+    
     start_http_server(PORT)
+    print(f"Metrics server started on :{PORT}/metrics")
+    
     t = threading.Thread(target=poll_loop, daemon=True)
     t.start()
+    print("Poll loop thread started")
+    
     # block main thread
     try:
         while True:
             time.sleep(60)
     except KeyboardInterrupt:
+        print("Shutting down...")
         pass
