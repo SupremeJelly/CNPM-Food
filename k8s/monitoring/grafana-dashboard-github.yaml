@@ -17,200 +17,6 @@ data:
       "panels": [
         {
           "type": "stat",
-<<<<<<< HEAD
-          "title": "🚨 Failing Workflows",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 3, "w": 3, "x": 0, "y": 0},
-          "targets": [ { "expr": "count(github_workflow_failed_job == 1) by (workflow) or vector(0)", "refId": "A" } ],
-          "options": {
-            "graphMode": "none",
-            "colorMode": "background",
-            "textMode": "value"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"value": null, "color": "green"},
-                  {"value": 1, "color": "red"}
-                ]
-              }
-            }
-          }
-        },
-        {
-          "type": "stat",
-          "title": "❌ Failing Jobs",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 3, "w": 3, "x": 3, "y": 0},
-          "targets": [ { "expr": "count(github_workflow_failed_job == 1) or vector(0)", "refId": "A" } ],
-          "options": {
-            "graphMode": "none",
-            "colorMode": "background",
-            "textMode": "value"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"value": null, "color": "green"},
-                  {"value": 1, "color": "orange"},
-                  {"value": 3, "color": "red"}
-                ]
-              }
-            }
-          }
-        },
-        {
-          "type": "stat",
-          "title": "🧪 Failed Tests",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 3, "w": 3, "x": 6, "y": 0},
-          "targets": [ { "expr": "sum(github_workflow_testcase_failed_total) or vector(0)", "refId": "A" } ],
-          "options": {
-            "graphMode": "none",
-            "colorMode": "background",
-            "textMode": "value"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"value": null, "color": "green"},
-                  {"value": 1, "color": "red"}
-                ]
-              }
-            }
-          }
-        },
-        {
-          "type": "stat",
-          "title": "✅ Exporter",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 3, "w": 3, "x": 9, "y": 0},
-          "targets": [ { "expr": "up{job=~\"github-exporter.*\"}", "refId": "A" } ],
-          "options": {
-            "graphMode": "none",
-            "colorMode": "background",
-            "textMode": "name"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}}},
-                {"type": "value", "options": {"1": {"text": "UP", "color": "green"}}}
-              ]
-            }
-          }
-        },
-        {
-          "type": "gauge",
-          "title": "Rate Limit",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 3, "w": 3, "x": 12, "y": 0},
-          "targets": [ { "expr": "github_rate_limit_remaining", "refId": "A" } ],
-          "options": {
-            "showThresholdLabels": false,
-            "showThresholdMarkers": true
-          },
-          "fieldConfig": {
-            "defaults": {
-              "max": 5000,
-              "min": 0,
-              "unit": "short",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"value": null, "color": "red"},
-                  {"value": 1000, "color": "orange"},
-                  {"value": 3000, "color": "green"}
-                ]
-              }
-            }
-          }
-        },
-
-        {
-          "type": "table",
-          "title": "🔴 Failing Jobs",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 6, "w": 8, "x": 0, "y": 3},
-          "targets": [ { 
-            "expr": "github_workflow_failed_job == 1", 
-            "refId": "A",
-            "format": "table",
-            "instant": true
-          } ],
-          "options": {
-            "showHeader": true,
-            "sortBy": [{"displayName": "Time", "desc": true}]
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "custom": {
-                "width": "auto"
-              }
-            },
-            "overrides": [
-              {
-                "matcher": {"id": "byName", "options": "workflow"},
-                "properties": [
-                  {"id": "custom.width", "value": 250},
-                  {"id": "custom.displayMode", "value": "color-background"},
-                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-red"}}
-                ]
-              },
-              {
-                "matcher": {"id": "byName", "options": "job"},
-                "properties": [
-                  {"id": "custom.width", "value": 250},
-                  {"id": "custom.displayMode", "value": "color-background"},
-                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-orange"}}
-                ]
-              },
-              {
-                "matcher": {"id": "byName", "options": "Value"},
-                "properties": [
-                  {"id": "custom.width", "value": 80},
-                  {"id": "custom.displayMode", "value": "color-text"},
-                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}},
-                  {"id": "mappings", "value": [{"type": "value", "options": {"1": {"text": "FAILED", "color": "red"}}}]}
-                ]
-              }
-            ]
-          },
-          "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {"Time": true, "__name__": true, "instance": true, "exported_job": true, "app": true, "kubernetes_namespace": true, "kubernetes_pod_name": true, "pod_template_hash": true},
-                "indexByName": {"workflow": 0, "job": 1},
-                "renameByName": {"workflow": "Workflow", "job": "Job"}
-              }
-            },
-            {
-              "id": "filterFieldsByName",
-              "options": {
-                "include": {
-                  "names": ["Workflow", "Job"]
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "table",
-          "title": "⏰ Last Failed",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 6, "w": 7, "x": 8, "y": 3},
-=======
           "title": "Exporter Up",
           "datasource": "Prometheus",
           "gridPos": {"h": 3, "w": 4, "x": 0, "y": 0},
@@ -250,7 +56,6 @@ data:
           "title": "⏰ Last Failed Time (per workflow)",
           "datasource": "Prometheus",
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 18},
->>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
           "targets": [ { 
             "expr": "github_workflow_last_failed_timestamp_seconds * 1000", 
             "refId": "A",
@@ -298,24 +103,6 @@ data:
         },
         {
           "type": "table",
-<<<<<<< HEAD
-          "title": "🧪 Failed Test Cases",
-          "datasource": "Prometheus",
-          "gridPos": {"h": 8, "w": 15, "x": 0, "y": 9},
-          "targets": [ { 
-            "expr": "topk(15, github_workflow_testcase_failed_total > 0)", 
-            "refId": "A", 
-            "format": "table", 
-            "instant": true 
-          } ],
-          "options": {
-            "showHeader": true,
-            "sortBy": [{"displayName": "Count", "desc": true}],
-            "footer": {
-              "show": true,
-              "reducer": ["sum"],
-              "fields": ["Count"]
-=======
           "title": "🚀 Recently Run Workflows (Last 24h)",
           "datasource": "Prometheus",
           "gridPos": {"h": 8, "w": 24, "x": 0, "y": 6},
@@ -340,20 +127,10 @@ data:
               "show": true,
               "reducer": ["count"],
               "fields": ["Workflow"]
->>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
             }
           },
           "fieldConfig": {
             "defaults": {
-<<<<<<< HEAD
-              "unit": "short"
-            },
-            "overrides": [
-              {
-                "matcher": {"id": "byName", "options": "Test"},
-                "properties": [
-                  {"id": "custom.width", "value": 600},
-=======
               "unit": "short",
               "custom": {
                 "width": "auto",
@@ -440,18 +217,11 @@ data:
                 "matcher": {"id": "byName", "options": "Workflow"},
                 "properties": [
                   {"id": "custom.width", "value": 280},
->>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
                   {"id": "custom.displayMode", "value": "color-background"},
                   {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-red"}}
                 ]
               },
               {
-<<<<<<< HEAD
-                "matcher": {"id": "byName", "options": "Count"},
-                "properties": [
-                  {"id": "custom.width", "value": 80},
-                  {"id": "custom.displayMode", "value": "basic"},
-=======
                 "matcher": {"id": "byName", "options": "Failed Jobs"},
                 "properties": [
                   {"id": "custom.width", "value": 400},
@@ -464,7 +234,6 @@ data:
                 "properties": [
                   {"id": "custom.width", "value": 80},
                   {"id": "custom.displayMode", "value": "color-text"},
->>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
                   {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
                 ]
               }
@@ -474,11 +243,6 @@ data:
             {
               "id": "organize",
               "options": {
-<<<<<<< HEAD
-                "excludeByName": {"Time": true, "__name__": true, "instance": true, "app": true, "exported_job": true, "kubernetes_namespace": true, "kubernetes_pod_name": true, "pod_template_hash": true, "workflow": true, "job": true},
-                "indexByName": {"testcase": 0, "Value": 1},
-                "renameByName": {"Value": "Count", "testcase": "Test"}
-=======
                 "excludeByName": {"Time": true, "__name__": true, "instance": true, "Value": true, "job": true, "app": true, "kubernetes_namespace": true, "kubernetes_pod_name": true, "pod_template_hash": true},
                 "indexByName": {"workflow": 0, "exported_job": 1},
                 "renameByName": {"workflow": "Workflow", "exported_job": "Job Name"}
@@ -752,31 +516,12 @@ data:
                 "excludeByName": {},
                 "indexByName": {"Workflow": 0, "Job": 1, "Total Tests": 2, "Passed": 3, "Failed": 4, "Failed Test Cases": 5},
                 "renameByName": {}
->>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
               }
             }
           ]
         },
         {
           "type": "logs",
-<<<<<<< HEAD
-          "title": "📋 Failure Details (Steps & Tests)",
-          "datasource": "Loki",
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 17},
-          "targets": [ { 
-            "expr": "{app=\"github-exporter\"} |~ \"FAILED:|step=|TEST_FAIL:|TEST_SUMMARY:\"", 
-            "refId": "A" 
-          } ],
-          "options": {
-            "showTime": true,
-            "showLabels": false,
-            "showCommonLabels": false,
-            "wrapLogMessage": true,
-            "sortOrder": "Descending",
-            "dedupStrategy": "exact",
-            "enableLogDetails": true,
-            "prettifyLogMessage": false
-=======
           "title": "📋 Failed Tests from Loki (Last 24h)",
           "datasource": "Loki",
           "gridPos": {"h": 10, "w": 24, "x": 0, "y": 40},
@@ -798,14 +543,9 @@ data:
           "fieldConfig": {
             "defaults": {},
             "overrides": []
->>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
           }
         }
       ],
       "templating": {"list": []},
-<<<<<<< HEAD
-      "time": {"from": "now-1h", "to": "now"}
-=======
       "time": {"from": "now-24h", "to": "now"}
->>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
     }
