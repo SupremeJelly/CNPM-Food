@@ -792,7 +792,7 @@ jobs:
 
             # Also POST a separate stream for this job status with label `workflow_step`
             JOB_PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"workflow_step\":\"${job_name}\"},\"values\":[[\"${TS}\",\"job_status job=${job_name} status=${STATUS}\"]]}]}"
-            curl -s -X POST "${LOKI_URL}/loki/api/v1/push" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${JOB_PAYLOAD}" || true
+            curl -s -X POST "${LOKI_URL}" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${JOB_PAYLOAD}" || true
           done
           
           # Add job summary log
@@ -848,7 +848,7 @@ jobs:
 
                       # Build a labeled stream for this failed test
                       FAILED_PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"service\":\"${SERVICE}\",\"testsuite\":\"${TESTSUITE}\",\"test\":\"${TEST}\",\"status\":\"fail\",\"source_job\":\"${SRC_JOB}\"},\"values\":[[\"${TS}\",\"test_failed service=${SERVICE} test=${TEST} error=${ERR}\"]]}]}"
-                      curl -s -X POST "${LOKI_URL}/loki/api/v1/push" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${FAILED_PAYLOAD}" || true
+                      curl -s -X POST "${LOKI_URL}" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${FAILED_PAYLOAD}" || true
 
                     fi
                   done
@@ -867,7 +867,7 @@ jobs:
 
                 # Also POST a labeled stream for the service test summary
                 SUMMARY_PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"service\":\"${SERVICE}\",\"type\":\"test_summary\"},\"values\":[[\"${TS}\",\"test_summary service=${SERVICE} total=${SVC_TESTS} passed=${SVC_PASSED} failed=$((SVC_FAILURES + SVC_ERRORS))\"]]}]}"
-                curl -s -X POST "${LOKI_URL}/loki/api/v1/push" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${SUMMARY_PAYLOAD}" || true
+                curl -s -X POST "${LOKI_URL}" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${SUMMARY_PAYLOAD}" || true
               fi
             done
           fi
@@ -880,7 +880,7 @@ jobs:
           
           PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\"},\"values\":$LOGS}]}"
           
-          curl -s -X POST "$LOKI_URL/loki/api/v1/push" \
+          curl -s -X POST "$LOKI_URL" \
             -u "$LOKI_USER:$LOKI_PASSWORD" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" && echo "✅ Logs pushed to Loki successfully" || echo "❌ Failed to push logs"

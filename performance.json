@@ -1,0 +1,540 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "uid": "github-exporter",
+  "title": "GitHub Exporter - CNPM Food",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Exporter Up",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 3, "w": 4, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "up{job=~\"github-exporter.*\"}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Rate Limit Remaining",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 3, "w": 4, "x": 4, "y": 0 },
+      "targets": [
+        {
+          "expr": "github_rate_limit_remaining",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GitHub API Request Rate",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(github_requests_total[5m])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GitHub API Error Rate",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(github_requests_errors_total[5m])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GitHub Call Latency (p95)",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 3, "w": 8, "x": 0, "y": 3 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(github_request_duration_seconds_bucket[5m])) by (le))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "🚀 Recently Run Workflows (Last 24h)",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "expr": "github_workflow_last_failed_timestamp_seconds > (time() - 86400)",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "expr": "count by (workflow) (github_workflow_failed_job == 1)",
+          "refId": "B",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          { "displayName": "Run Time", "desc": true }
+        ],
+        "footer": {
+          "show": true,
+          "reducer": [ "count" ],
+          "fields": [ "Workflow" ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "width": "auto", "align": "left" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Workflow" },
+            "properties": [
+              { "id": "custom.width", "value": 350 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-blue" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Run Time" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsIso" },
+              { "id": "custom.width", "value": 200 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-purple" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.width", "value": 120 },
+              { "id": "custom.displayMode", "value": "color-text" },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "range", "options": { "from": 1, "to": 999, "result": { "text": "❌ FAILED", "color": "red" } } },
+                  { "type": "special", "options": { "match": "null", "result": { "text": "✅ PASSED", "color": "green" } } }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        { "id": "merge", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true, "app": true, "exported_job": true, "kubernetes_namespace": true, "kubernetes_pod_name": true, "pod_template_hash": true },
+            "indexByName": { "workflow": 0, "Value #A": 1, "Value #B": 2 },
+            "renameByName": {
+              "workflow": "Workflow",
+              "Value #A": "Run Time",
+              "Value #B": "Status"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "🔴 Workflow Failing Jobs",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "expr": "github_workflow_failed_job == 1",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          { "displayName": "Workflow", "desc": false }
+        ],
+        "footer": { "countRows": false, "reducer": [ "count" ], "show": true }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "width": "auto" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Workflow" },
+            "properties": [
+              { "id": "custom.width", "value": 280 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-red" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Failed Jobs" },
+            "properties": [
+              { "id": "custom.width", "value": 400 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-orange" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Count" },
+            "properties": [
+              { "id": "custom.width", "value": 80 },
+              { "id": "custom.displayMode", "value": "color-text" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "Value": true, "job": true, "app": true, "kubernetes_namespace": true, "kubernetes_pod_name": true, "pod_template_hash": true },
+            "indexByName": { "workflow": 0, "exported_job": 1 },
+            "renameByName": { "workflow": "Workflow", "exported_job": "Job Name" }
+          }
+        },
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "Workflow": { "aggregations": [], "operation": "groupby" },
+              "Job Name": { "aggregations": [ "uniqueValues" ], "operation": "aggregate" }
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": { "Workflow": 0, "Job Name (uniqueValues)": 1, "Job Name (count)": 2 },
+            "renameByName": { "Job Name (uniqueValues)": "Failed Jobs", "Job Name (count)": "Count" }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "⏰ Last Failed Time (per workflow)",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "targets": [
+        {
+          "expr": "github_workflow_last_failed_timestamp_seconds * 1000",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          { "displayName": "Last Failed", "desc": true }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "workflow" },
+            "properties": [
+              { "id": "custom.width", "value": 300 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-blue" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsIso" },
+              { "id": "custom.width", "value": 200 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-purple" } }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "indexByName": { "workflow": 0, "Value": 1 },
+            "renameByName": { "Value": "Last Failed", "workflow": "Workflow Name" }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "🔥 Failed Jobs by Workflow (Grouped)",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "targets": [
+        {
+          "expr": "github_workflow_failed_job == 1",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          { "displayName": "Workflow", "desc": false }
+        ],
+        "footer": {
+          "show": true,
+          "reducer": [ "count" ],
+          "fields": [ "Workflow" ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "width": "auto", "align": "left" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Workflow" },
+            "properties": [
+              { "id": "custom.width", "value": 300 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-red" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Failed Jobs" },
+            "properties": [
+              { "id": "custom.width", "value": 600 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-orange" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Count" },
+            "properties": [
+              { "id": "custom.width", "value": 80 },
+              { "id": "custom.displayMode", "value": "color-text" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "workflow": { "aggregations": [], "operation": "groupby" },
+              "exported_job": { "aggregations": [ "uniqueValues" ], "operation": "aggregate" },
+              "Value": { "aggregations": [ "count" ], "operation": "aggregate" }
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": { "workflow": 0, "exported_job (uniqueValues)": 1, "Value (count)": 2 },
+            "renameByName": {
+              "workflow": "Workflow",
+              "exported_job (uniqueValues)": "Failed Jobs",
+              "Value (count)": "Count"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "🧪 Test Cases Summary",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 30 },
+      "targets": [
+        {
+          "expr": "github_workflow_testcase_total",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "expr": "sum by (workflow, job, testcase) (github_workflow_testcase_failed_total)",
+          "refId": "B",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          { "displayName": "Workflow", "desc": false }
+        ],
+        "footer": {
+          "show": true,
+          "reducer": [ "sum" ],
+          "fields": [ "Total Tests", "Failed" ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "width": "auto", "align": "left" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Workflow" },
+            "properties": [
+              { "id": "custom.width", "value": 200 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-blue" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Job" },
+            "properties": [
+              { "id": "custom.width", "value": 200 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-purple" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Total Tests" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              { "id": "custom.displayMode", "value": "color-text" },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Failed" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              { "id": "custom.displayMode", "value": "color-text" },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Passed" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              { "id": "custom.displayMode", "value": "color-text" },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Failed Test Cases" },
+            "properties": [
+              { "id": "custom.width", "value": 500 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-red" } }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        { "id": "merge", "options": {} },
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "workflow": { "aggregations": [], "operation": "groupby" },
+              "job": { "aggregations": [], "operation": "groupby" },
+              "Value #A": { "aggregations": [ "lastNotNull" ], "operation": "aggregate" },
+              "testcase": { "aggregations": [ "uniqueValues" ], "operation": "aggregate" },
+              "Value #B": { "aggregations": [ "count" ], "operation": "aggregate" }
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "app": true, "exported_job": true, "kubernetes_namespace": true, "kubernetes_pod_name": true, "pod_template_hash": true },
+            "indexByName": { "workflow": 0, "job": 1, "Value #A (lastNotNull)": 2, "Value #B (count)": 3, "testcase (uniqueValues)": 4 },
+            "renameByName": {
+              "workflow": "Workflow",
+              "job": "Job",
+              "Value #A (lastNotNull)": "Total Tests",
+              "Value #B (count)": "Failed",
+              "testcase (uniqueValues)": "Failed Test Cases"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "reduceRow",
+            "reduce": { "reducer": "diff" },
+            "replaceFields": false,
+            "alias": "Passed",
+            "binary": {
+              "left": "Total Tests",
+              "operator": "-",
+              "right": "Failed"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": { "Workflow": 0, "Job": 1, "Total Tests": 2, "Passed": 3, "Failed": 4, "Failed Test Cases": 5 },
+            "renameByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "📋 Failed Tests from Loki (Last 24h)",
+      "datasource": "Loki",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 40 },
+      "targets": [
+        {
+          "expr": "{job=\"ci\", workflow=~\".*\"} |= \"test_failed\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none",
+        "enableLogDetails": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": { "from": "now-24h", "to": "now" }
+}
