@@ -417,12 +417,15 @@ jobs:
           cache-to: type=inline
 
   # ========== STAGE 5: DEPLOY TO KUBERNETES (Only after successful image build) ==========
-  # TEMPORARILY DISABLED - Change "if: false" to original condition to re-enable
   deploy-to-k8s:
     needs: build-images
     runs-on: self-hosted
     environment: staging
-    if: false
+    if: |
+      always() && 
+      needs.build-artifacts.result == 'success' &&
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
     permissions:
       contents: read
 
@@ -717,7 +720,7 @@ jobs:
 
   # ========== STAGE 6: EXPORT LOGS TO LOKI ==========
   export-logs-to-loki:
-    needs: [test-backend, test-frontend, build-artifacts, build-images]
+    needs: [test-backend, test-frontend, build-artifacts, build-images, deploy-to-k8s]
     runs-on: ubuntu-latest
     if: always()
     environment: staging
@@ -757,8 +760,8 @@ jobs:
           PASSED_JOBS=0
           FAILED_JOBS=0
           
-          # Check each job status (deploy-to-k8s temporarily excluded)
-          for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images"; do
+          # Check each job status
+          for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images" "deploy-to-k8s"; do
             TOTAL_JOBS=$((TOTAL_JOBS + 1))
             case "$job_name" in
               "test-backend")
@@ -772,6 +775,9 @@ jobs:
                 ;;
               "build-images")
                 STATUS="${{ needs.build-images.result }}"
+                ;;
+              "deploy-to-k8s")
+                STATUS="${{ needs.deploy-to-k8s.result }}"
                 ;;
             esac
             
@@ -848,7 +854,7 @@ jobs:
           
           PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\"},\"values\":$LOGS}]}"
           
-          curl -s -X POST "$LOKI_URL" \
+          curl -s -X POST "$LOKI_URL/loki/api/v1/push" \
             -u "$LOKI_USER:$LOKI_PASSWORD" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" && echo "✅ Logs pushed to Loki successfully" || echo "❌ Failed to push logs"
