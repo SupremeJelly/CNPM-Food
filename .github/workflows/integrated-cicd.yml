@@ -856,8 +856,8 @@ jobs:
           fi
           
           TS=$(date +%s)000000000
-          # Log mở đầu workflow
-          LOGS="[[\"$TS\",\"type=workflow_start workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]]"
+          # Log mở đầu workflow (use LOG_ENTRIES accumulator to build JSON values safely)
+          LOG_ENTRIES="[$TS,\"type=workflow_start workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]"
           
           # --- 1. JOB STATUS SUMMARY ---
           TOTAL_JOBS=0
@@ -878,20 +878,28 @@ jobs:
             if [ "$STATUS" = "success" ]; then
               PASSED_JOBS=$((PASSED_JOBS + 1))
               MSG="type=job_status job=$job_name status=pass"
-              LOGS="${LOGS%]]},[$TS,\"$MSG\"]]"
             elif [ "$STATUS" = "failure" ]; then
               FAILED_JOBS=$((FAILED_JOBS + 1))
               MSG="type=job_status job=$job_name status=fail"
-              LOGS="${LOGS%]]},[$TS,\"$MSG\"]]"
             elif [ "$STATUS" = "skipped" ]; then
               MSG="type=job_status job=$job_name status=skipped"
-              LOGS="${LOGS%]]},[$TS,\"$MSG\"]]"
+            fi
+            # append to LOG_ENTRIES
+            if [ -z "$LOG_ENTRIES" ]; then
+              LOG_ENTRIES="[$TS,\"$MSG\"]"
+            else
+              LOG_ENTRIES="$LOG_ENTRIES,[$TS,\"$MSG\"]"
+            fi
             fi
           done
           
           # Tổng kết Jobs
           MSG="type=job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS"
-          LOGS="${LOGS%]]},[$TS,\"$MSG\"]]"
+          if [ -z "$LOG_ENTRIES" ]; then
+            LOG_ENTRIES="[$TS,\"$MSG\"]"
+          else
+            LOG_ENTRIES="$LOG_ENTRIES,[$TS,\"$MSG\"]"
+          fi
 
           # --- 2. TEST RESULTS SUMMARY ---
           TEST_STATUS="unknown"
@@ -955,15 +963,21 @@ jobs:
               else
                 EXTRA_STREAMS="$EXTRA_STREAMS,$STREAM_JSON"
               fi
+
+              # (Removed per-service readable summary insertion to avoid duplication; stage 7 format will be used)
             done
           fi
 
           # Xác định trạng thái chung
           if [ "$FAILED_TESTS_ALL" -gt 0 ]; then TEST_STATUS="failed"; elif [ "$TOTAL_TESTS_ALL" -gt 0 ]; then TEST_STATUS="passed"; fi
 
+          # (Removed overall readable summary insertion to avoid duplication; stage 7 format will be used)
+
           # --- 3. SEND TO LOKI ---
           
           # Gửi Payload chính (Job logs)
+          # Build JSON values array from LOG_ENTRIES
+          LOGS="[$LOG_ENTRIES]"
           PAYLOAD="{\"streams\":[{\"stream\":{\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"test_status\":\"$TEST_STATUS\"},\"values\":$LOGS}]}"
           
           curl -s -X POST "$LOKI_URL" \
@@ -979,6 +993,46 @@ jobs:
               -H "Content-Type: application/json" \
               -d "$EXTRA_PAYLOAD" && echo "✅ Service logs pushed" || echo "❌ Failed service logs"
           fi
+
+          # --- 4. APPEND DETAILED TEST SUMMARY (reuse Stage 7 format) ---
+          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          for dir in test-results/*/; do
+            if [ -d "$dir" ]; then
+              SERVICE=$(basename "$dir")
+              echo "### $SERVICE" >> $GITHUB_STEP_SUMMARY
+
+              XML_COUNT=$(find "$dir" -name "*.xml" -type f 2>/dev/null | wc -l)
+              if [ "$XML_COUNT" -gt 0 ]; then
+                TESTS=$(grep -rh 'tests=' "$dir" 2>/dev/null | grep -oP 'tests="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
+                FAILURES=$(grep -rh 'failures=' "$dir" 2>/dev/null | grep -oP 'failures="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
+                ERRORS=$(grep -rh 'errors=' "$dir" 2>/dev/null | grep -oP 'errors="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
+                PASSED=$((TESTS - FAILURES - ERRORS))
+
+                echo "- ✅ Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+                echo "- ❌ Failed: $FAILURES" >> $GITHUB_STEP_SUMMARY
+                echo "- ⚠️ Errors: $ERRORS" >> $GITHUB_STEP_SUMMARY
+                echo "- 📊 Total: $TESTS" >> $GITHUB_STEP_SUMMARY
+
+                if [ "$FAILURES" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "#### ❌ Failed Tests:" >> $GITHUB_STEP_SUMMARY
+                  for XML in "$dir"/*.xml "$dir"/**/*.xml; do
+                    [ -f "$XML" ] || continue
+                    grep -oP '<testcase.*?name="\K[^"']+' "$XML" 2>/dev/null | while read TEST; do
+                      if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
+                        echo "- \\`$TEST\\`" >> $GITHUB_STEP_SUMMARY
+                      fi
+                    done
+                  done
+                fi
+              else
+                echo "- No test results found" >> $GITHUB_STEP_SUMMARY
+              fi
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
 
   # ========== STAGE 7: TEST SUMMARY (Always runs) ==========
   test-summary:
