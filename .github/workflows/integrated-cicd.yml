@@ -422,7 +422,7 @@ jobs:
     needs: build-images
     runs-on: self-hosted
     environment: staging
-    if: false
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
     permissions:
       contents: read
 
@@ -737,78 +737,67 @@ jobs:
           LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
         run: |
           # Debug: Check if secrets are set
-          echo "Checking Loki configuration..."
           if [ -z "$LOKI_URL" ]; then
-            echo "⚠️ LOKI_URL is not set. Please add it to GitHub repository secrets."
-            echo "Skipping log export."
+            echo "⚠️ LOKI_URL is not set. Skipping log export."
             exit 0
           fi
-          if [ -z "$LOKI_USER" ]; then
-            echo "⚠️ LOKI_USER is not set. Using no authentication."
-          fi
-          echo "✅ LOKI_URL is configured: ${LOKI_URL:0:30}..."
           
           TS=$(date +%s)000000000
-          LOGS="[[\"$TS\",\"workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]]"
+          # Log mở đầu workflow
+          LOGS="[[\"$TS\",\"type=workflow_start workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]]"
           
-          # Job status summary
-          echo "=== Job Status Summary ==="
+          # --- 1. JOB STATUS SUMMARY ---
           TOTAL_JOBS=0
           PASSED_JOBS=0
           FAILED_JOBS=0
           
-          # Check each job status
           for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images" "deploy-to-k8s"; do
             TOTAL_JOBS=$((TOTAL_JOBS + 1))
             case "$job_name" in
-              "test-backend")
-                STATUS="${{ needs.test-backend.result }}"
-                ;;
-              "test-frontend")
-                STATUS="${{ needs.test-frontend.result }}"
-                ;;
-              "build-artifacts")
-                STATUS="${{ needs.build-artifacts.result }}"
-                ;;
-              "build-images")
-                STATUS="${{ needs.build-images.result }}"
-                ;;
-              "deploy-to-k8s")
-                STATUS="${{ needs.deploy-to-k8s.result }}"
-                ;;
+              "test-backend") STATUS="${{ needs.test-backend.result }}" ;;
+              "test-frontend") STATUS="${{ needs.test-frontend.result }}" ;;
+              "build-artifacts") STATUS="${{ needs.build-artifacts.result }}" ;;
+              "build-images") STATUS="${{ needs.build-images.result }}" ;;
+              "deploy-to-k8s") STATUS="${{ needs.deploy-to-k8s.result }}" ;;
             esac
             
+            # SỬA: Log ra format key=value đơn giản
             if [ "$STATUS" = "success" ]; then
               PASSED_JOBS=$((PASSED_JOBS + 1))
-              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=pass\"]]"
+              MSG="type=job_status job=$job_name status=pass"
+              LOGS="${LOGS%]]},[$TS,\"$MSG\"]]"
             elif [ "$STATUS" = "failure" ]; then
               FAILED_JOBS=$((FAILED_JOBS + 1))
-              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=fail\"]]"
+              MSG="type=job_status job=$job_name status=fail"
+              LOGS="${LOGS%]]},[$TS,\"$MSG\"]]"
             elif [ "$STATUS" = "skipped" ]; then
-              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=skipped\"]]"
+              MSG="type=job_status job=$job_name status=skipped"
+              LOGS="${LOGS%]]},[$TS,\"$MSG\"]]"
             fi
           done
           
-          # Add job summary log
-          LOGS="${LOGS%]]},[$TS,\"job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS\"]]"
-          echo "Jobs: Total=$TOTAL_JOBS Passed=$PASSED_JOBS Failed=$FAILED_JOBS"
-          
-          # Test results summary
-          echo "=== Test Results Summary ==="
-          TOTAL_TESTS=0
-          PASSED_TESTS=0
-          FAILED_TESTS=0
-          
+          # Tổng kết Jobs
+          MSG="type=job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS"
+          LOGS="${LOGS%]]},[$TS,\"$MSG\"]]"
+
+          # --- 2. TEST RESULTS SUMMARY ---
+          TEST_STATUS="unknown"
+          TOTAL_TESTS_ALL=0
+          FAILED_TESTS_ALL=0
+
           if [ -d "test-results" ]; then
+            EXTRA_STREAMS=""
+            
             for dir in test-results/*/; do
               [ -d "$dir" ] || continue
               SERVICE=$(basename "$dir")
               
-              # Aggregate tests per service
               SVC_TESTS=0
               SVC_FAILURES=0
               SVC_ERRORS=0
+              FAILED_NAMES_LIST=""
               
+              # Duyệt qua từng file XML để đếm và lấy tên lỗi
               for XML in "$dir"/*.xml "$dir"/**/*.xml; do
                 [ -f "$XML" ] || continue
                 T=$(grep -oP 'tests="\K[0-9]+' "$XML" | head -1 || echo "0")
@@ -818,101 +807,64 @@ jobs:
                 SVC_TESTS=$((SVC_TESTS + T))
                 SVC_FAILURES=$((SVC_FAILURES + F))
                 SVC_ERRORS=$((SVC_ERRORS + E))
-                
-                # Extract failed test names with service context
+
+                # SỬA: Lấy tên các test case bị fail gom vào biến string ngay tại đây
                 if [ "$F" -gt 0 ] || [ "$E" -gt 0 ]; then
-                  grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null | while read TEST; do
-                    if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
-                      ERR=$(grep -A 3 "name=\"$TEST\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 | cut -c1-80)
-                      LOGS="${LOGS%]]},[$TS,\"test_failed service=$SERVICE test=$TEST error=${ERR:-Unknown}\"]]"
-                    fi
-                  done
+                   # Tìm tên testcase có thẻ failure hoặc error bên trong
+                   CURRENT_FAILS=$(grep -oP '<testcase.*?name="\K[^"]+' "$XML" | while read TNAME; do
+                       if grep -A 3 "name=\"$TNAME\"" "$XML" | grep -q '<failure\|<error'; then
+                           echo "$TNAME"
+                       fi
+                   done)
+                   # Nối vào danh sách chung, cách nhau bằng dấu phẩy
+                   if [ -n "$CURRENT_FAILS" ]; then
+                      FAILED_NAMES_LIST="$FAILED_NAMES_LIST $CURRENT_FAILS"
+                   fi
                 fi
               done
               
               SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
-              TOTAL_TESTS=$((TOTAL_TESTS + SVC_TESTS))
-              PASSED_TESTS=$((PASSED_TESTS + SVC_PASSED))
-              FAILED_TESTS=$((FAILED_TESTS + SVC_FAILURES + SVC_ERRORS))
+              TOTAL_TESTS_ALL=$((TOTAL_TESTS_ALL + SVC_TESTS))
+              FAILED_TESTS_ALL=$((FAILED_TESTS_ALL + SVC_FAILURES + SVC_ERRORS))
               
-              # Log per-service test summary
-              if [ "$SVC_TESTS" -gt 0 ]; then
-                LOGS="${LOGS%]]},[$TS,\"test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS))\"]]"
-                echo "Service: $SERVICE - Total=$SVC_TESTS Passed=$SVC_PASSED Failed=$((SVC_FAILURES + SVC_ERRORS))"
+              # Làm sạch danh sách tên lỗi (thay xuống dòng bằng dấu phẩy)
+              CLEAN_FAILED_NAMES=$(echo "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^ *//;s/ *$//;s/^,//;s/,,/,/g')
+
+              # SỬA: Tạo log message đầy đủ thông tin dạng key=value
+              # Format: type=test_summary service=user-service total=10 ... failed_cases="TestA,TestB"
+              MSG="type=test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS)) failed_cases=\"$CLEAN_FAILED_NAMES\""
+              
+              # Đóng gói JSON stream riêng cho service này
+              STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$MSG")
+              
+              if [ -z "$EXTRA_STREAMS" ]; then
+                EXTRA_STREAMS="$STREAM_JSON"
+              else
+                EXTRA_STREAMS="$EXTRA_STREAMS,$STREAM_JSON"
               fi
             done
           fi
+
+          # Xác định trạng thái chung
+          if [ "$FAILED_TESTS_ALL" -gt 0 ]; then TEST_STATUS="failed"; elif [ "$TOTAL_TESTS_ALL" -gt 0 ]; then TEST_STATUS="passed"; fi
+
+          # --- 3. SEND TO LOKI ---
           
-          # Add overall test summary
-          if [ "$TOTAL_TESTS" -gt 0 ]; then
-            LOGS="${LOGS%]]},[$TS,\"test_summary_total total=$TOTAL_TESTS passed=$PASSED_TESTS failed=$FAILED_TESTS\"]]"
-            echo "Tests Overall: Total=$TOTAL_TESTS Passed=$PASSED_TESTS Failed=$FAILED_TESTS"
-          fi
-          
-          PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\"},\"values\":$LOGS}]}"
+          # Gửi Payload chính (Job logs)
+          PAYLOAD="{\"streams\":[{\"stream\":{\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"test_status\":\"$TEST_STATUS\"},\"values\":$LOGS}]}"
           
           curl -s -X POST "$LOKI_URL" \
             -u "$LOKI_USER:$LOKI_PASSWORD" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD" && echo "✅ Logs pushed to Loki successfully" || echo "❌ Failed to push logs"
+            -d "$PAYLOAD" && echo "✅ Main logs pushed" || echo "❌ Failed main logs"
 
-          # --- Additional: push per-service labeled streams to Loki (summary + failed tests)
-          # Builds a separate payload containing one stream per service with labels:
-          #  - service: <service name>
-          #  - type: test_summary | test_failed
-          # and posts it to Loki. This is additive only and does not modify existing payloads.
-          EXTRA_STREAMS=""
-          for dir in test-results/*/; do
-            [ -d "$dir" ] || continue
-            SERVICE=$(basename "$dir")
-
-            SVC_TESTS=0
-            SVC_FAILURES=0
-            SVC_ERRORS=0
-            for XML in "$dir"/*.xml "$dir"/**/*.xml; do
-              [ -f "$XML" ] || continue
-              T=$(grep -oP 'tests="\K[0-9]+' "$XML" | head -1 || echo "0")
-              F=$(grep -oP 'failures="\K[0-9]+' "$XML" | head -1 || echo "0")
-              E=$(grep -oP 'errors="\K[0-9]+' "$XML" | head -1 || echo "0")
-              SVC_TESTS=$((SVC_TESTS + T))
-              SVC_FAILURES=$((SVC_FAILURES + F))
-              SVC_ERRORS=$((SVC_ERRORS + E))
-            done
-            SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
-
-            # summary stream for this service (single value)
-            SUMMARY_JSON=$(printf '{"stream":{"service":"%s","type":"test_summary","workflow":"%s","run_id":"%s"},"values":[["%s","total=%s passed=%s failed=%s"]]}' "$SERVICE" "${{ github.workflow }}" "${{ github.run_id }}" "$TS" "$SVC_TESTS" "$SVC_PASSED" "$((SVC_FAILURES + SVC_ERRORS))")
-            if [ -z "$EXTRA_STREAMS" ]; then
-              EXTRA_STREAMS="$SUMMARY_JSON"
-            else
-              EXTRA_STREAMS="$EXTRA_STREAMS,$SUMMARY_JSON"
-            fi
-
-            # per-failed-test streams for this service
-            if [ "$SVC_FAILURES" -gt 0 ] || [ "$SVC_ERRORS" -gt 0 ]; then
-              for XML in "$dir"/*.xml "$dir"/**/**/*.xml; do
-                [ -f "$XML" ] || continue
-                grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null | while read TEST; do
-                  if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
-                    ERR=$(grep -A 3 "name=\"$TEST\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 | sed 's/"/\\"/g' | cut -c1-200)
-                    # escape quotes in test name
-                    T_ESC=$(echo "$TEST" | sed 's/"/\\"/g')
-                    FAIL_JSON=$(printf '{"stream":{"service":"%s","type":"test_failed","test":"%s","workflow":"%s","run_id":"%s"},"values":[["%s","error=%s"]]}' "$SERVICE" "$T_ESC" "${{ github.workflow }}" "${{ github.run_id }}" "$TS" "$ERR")
-                    EXTRA_STREAMS="$EXTRA_STREAMS,$FAIL_JSON"
-                  fi
-                done
-              done
-            fi
-          done
-
+          # Gửi Payload phụ (Test summary từng service)
           if [ -n "$EXTRA_STREAMS" ]; then
             EXTRA_PAYLOAD="{\"streams\":[${EXTRA_STREAMS}] }"
             curl -s -X POST "$LOKI_URL" \
               -u "$LOKI_USER:$LOKI_PASSWORD" \
               -H "Content-Type: application/json" \
-              -d "$EXTRA_PAYLOAD" && echo "✅ Per-service logs pushed to Loki successfully" || echo "❌ Failed to push per-service logs"
-          else
-            echo "No per-service test results to push to Loki."
+              -d "$EXTRA_PAYLOAD" && echo "✅ Service logs pushed" || echo "❌ Failed service logs"
           fi
 
   # ========== STAGE 7: TEST SUMMARY (Always runs) ==========
