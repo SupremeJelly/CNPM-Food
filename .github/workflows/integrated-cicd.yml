@@ -37,6 +37,8 @@ jobs:
 
       - name: Run tests for ${{ matrix.service }}
         working-directory: ./${{ matrix.service }}
+        continue-on-error: true
+        id: run-tests
         run: |
           echo "JOB_START: test-backend-${{ matrix.service }}"
           echo "STEP_START: Run tests for ${{ matrix.service }}"
@@ -44,16 +46,17 @@ jobs:
           # Run unit tests and integration tests
           if mvn clean verify -B 2>&1 | tee test-output.log; then
             echo "STEP_STATUS: PASS"
-            TEST_EXIT=0
+            echo "test_status=success" >> $GITHUB_OUTPUT
           else
             echo "STEP_STATUS: FAIL"
-            TEST_EXIT=1
+            echo "test_status=failure" >> $GITHUB_OUTPUT
           fi
           
           # Parse test results from surefire/failsafe reports
           TOTAL=0
           FAILURES=0
           ERRORS=0
+          FAILED_TESTS=""
           
           for REPORT_DIR in target/surefire-reports target/failsafe-reports; do
             if [ -d "$REPORT_DIR" ]; then
@@ -66,13 +69,20 @@ jobs:
                   FAILURES=$((FAILURES + F))
                   ERRORS=$((ERRORS + E))
                   
-                  # Extract failed test names
+                  # Extract failed test names and console logs
                   grep -oP '<testcase.*name="\K[^"]+' "$XML" | while read TEST_NAME; do
                     if grep -A 5 "name=\"$TEST_NAME\"" "$XML" | grep -q '<failure\|<error'; then
                       echo "TEST_RUN: $TEST_NAME"
                       echo "TEST_STATUS: FAIL"
                       ERROR_MSG=$(grep -A 5 "name=\"$TEST_NAME\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 || echo "Test failed")
                       echo "TEST_ERROR: $ERROR_MSG"
+                      
+                      # Extract console output for failed test
+                      echo "--- CONSOLE LOG FOR $TEST_NAME ---"
+                      sed -n "/Running $TEST_NAME/,/Tests run:.*$TEST_NAME/p" test-output.log 2>/dev/null || echo "No console log found"
+                      echo "--- END OF CONSOLE LOG ---"
+                      
+                      FAILED_TESTS="$FAILED_TESTS,$TEST_NAME"
                     fi
                   done
                 fi
@@ -83,7 +93,60 @@ jobs:
           PASSED=$((TOTAL - FAILURES - ERRORS))
           echo "TEST_SUMMARY: Total=$TOTAL Passed=$PASSED Failed=$((FAILURES + ERRORS))"
           
-          exit $TEST_EXIT
+          # Export results for Loki
+          echo "total_tests=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passed_tests=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed_tests=$((FAILURES + ERRORS))" >> $GITHUB_OUTPUT
+          FAILED_TESTS_CLEAN=$(echo "$FAILED_TESTS" | sed 's/^,//' | sed 's/,,/,/g')
+          echo "failed_test_names=$FAILED_TESTS_CLEAN" >> $GITHUB_OUTPUT
+
+      - name: Push test logs to Loki
+        if: always()
+        env:
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USER: ${{ secrets.LOKI_USER }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          if [ -z "$LOKI_URL" ]; then
+            echo "⚠️ LOKI_URL not set, skipping log push"
+            exit 0
+          fi
+          
+          TS=$(date +%s)000000000
+          SERVICE="${{ matrix.service }}"
+          TOTAL="${{ steps.run-tests.outputs.total_tests }}"
+          PASSED="${{ steps.run-tests.outputs.passed_tests }}"
+          FAILED="${{ steps.run-tests.outputs.failed_tests }}"
+          FAILED_NAMES="${{ steps.run-tests.outputs.failed_test_names }}"
+          TEST_STATUS="${{ steps.run-tests.outputs.test_status }}"
+          
+          # Create log message
+          MSG="type=test_result service=$SERVICE run_id=${{ github.run_id }} workflow=${{ github.workflow }} branch=${{ github.ref_name }} total=$TOTAL passed=$PASSED failed=$FAILED status=$TEST_STATUS failed_tests=\"$FAILED_NAMES\""
+          
+          # Push to Loki
+          PAYLOAD=$(cat <<EOF
+          {
+            "streams": [
+              {
+                "stream": {
+                  "job": "ci",
+                  "service": "$SERVICE",
+                  "log_type": "test",
+                  "workflow": "${{ github.workflow }}",
+                  "run_id": "${{ github.run_id }}",
+                  "test_status": "$TEST_STATUS"
+                },
+                "values": [["$TS", "$MSG"]]
+              }
+            ]
+          }
+          EOF
+          )
+          
+          curl -s -X POST "$LOKI_URL" \
+            -u "$LOKI_USER:$LOKI_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" && echo "✅ Test logs pushed to Loki for $SERVICE" || echo "❌ Failed to push logs for $SERVICE"
 
       - name: Upload test results
         if: always()
@@ -119,16 +182,62 @@ jobs:
         continue-on-error: true
 
       - name: Run frontend tests
+        id: run-frontend-tests
         working-directory: ./frontend
+        continue-on-error: true
         run: |
           echo "JOB_START: test-frontend"
           echo "STEP_START: Run frontend tests"
           if npm run test:ci; then
             echo "STEP_STATUS: PASS"
+            echo "test_status=success" >> $GITHUB_OUTPUT
           else
             echo "STEP_STATUS: FAIL"
+            echo "test_status=failure" >> $GITHUB_OUTPUT
           fi
-        continue-on-error: true
+
+      - name: Push frontend test logs to Loki
+        if: always()
+        env:
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USER: ${{ secrets.LOKI_USER }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          if [ -z "$LOKI_URL" ]; then
+            echo "⚠️ LOKI_URL not set, skipping log push"
+            exit 0
+          fi
+          
+          TS=$(date +%s)000000000
+          TEST_STATUS="${{ steps.run-frontend-tests.outputs.test_status }}"
+          
+          # Create log message
+          MSG="type=test_result service=frontend run_id=${{ github.run_id }} workflow=${{ github.workflow }} branch=${{ github.ref_name }} status=$TEST_STATUS"
+          
+          # Push to Loki
+          PAYLOAD=$(cat <<EOF
+          {
+            "streams": [
+              {
+                "stream": {
+                  "job": "ci",
+                  "service": "frontend",
+                  "log_type": "test",
+                  "workflow": "${{ github.workflow }}",
+                  "run_id": "${{ github.run_id }}",
+                  "test_status": "$TEST_STATUS"
+                },
+                "values": [["$TS", "$MSG"]]
+              }
+            ]
+          }
+          EOF
+          )
+          
+          curl -s -X POST "$LOKI_URL" \
+            -u "$LOKI_USER:$LOKI_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" && echo "✅ Frontend test logs pushed to Loki" || echo "❌ Failed to push frontend logs"
 
       - name: Upload frontend test results
         if: always()
