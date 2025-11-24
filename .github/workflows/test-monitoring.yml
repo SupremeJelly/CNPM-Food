@@ -56,7 +56,25 @@ jobs:
           echo "TEST_SKIPPED: 0"
           exit 1
       
+<<<<<<< HEAD
       - name: Cleanup (will not run)
+=======
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-integration
+          path: |
+            echo "<testsuite tests=\"5\" failures=\"2\" errors=\"0\">" > test-results.xml
+            echo "  <testcase name=\"test_user_authentication\" />" >> test-results.xml
+            echo "  <testcase name=\"test_database_connection\" />" >> test-results.xml
+            echo "  <testcase name=\"test_api_endpoint_validation\"><failure message=\"Expected status 200 but got 500\" /></testcase>" >> test-results.xml
+            echo "  <testcase name=\"test_payment_processing\" />" >> test-results.xml
+            echo "  <testcase name=\"test_order_workflow\"><failure message=\"OrderNotFoundException: Order ID 12345 not found\" /></testcase>" >> test-results.xml
+            echo "</testsuite>" >> test-results.xml
+      
+      - name: Cleanup
+>>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
         if: always()
         run: echo "Cleanup completed"
 
@@ -68,6 +86,42 @@ jobs:
       
       - name: Run Maven Tests
         run: |
+<<<<<<< HEAD
+=======
+          mkdir -p target/surefire-reports
+          
+          # Create XML test results
+          cat > target/surefire-reports/TEST-UserServiceTest.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite tests="3" failures="1" errors="0" name="com.cnpmfood.user.UserServiceTest">
+            <testcase name="testUserRegistration" classname="com.cnpmfood.user.UserServiceTest">
+              <failure message="Expected user to be created but got null" type="AssertionError">AssertionError: Expected user to be created but got null</failure>
+            </testcase>
+            <testcase name="testUserLogin" classname="com.cnpmfood.user.UserServiceTest"/>
+            <testcase name="testUserUpdate" classname="com.cnpmfood.user.UserServiceTest"/>
+          </testsuite>
+          EOF
+          
+          cat > target/surefire-reports/TEST-OrderServiceTest.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite tests="1" failures="0" errors="1" name="com.cnpmfood.order.OrderServiceTest">
+            <testcase name="testOrderCreation" classname="com.cnpmfood.order.OrderServiceTest">
+              <error message="NullPointerException at OrderService.createOrder" type="NullPointerException">NullPointerException at OrderService.createOrder(OrderService.java:45)</error>
+            </testcase>
+          </testsuite>
+          EOF
+          
+          cat > target/surefire-reports/TEST-OtherTests.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite tests="3" failures="1" errors="0" name="Other Tests">
+            <testcase name="testRestaurantSearch" classname="com.cnpmfood.restaurant.RestaurantServiceTest"/>
+            <testcase name="testPaymentProcessing" classname="com.cnpmfood.payment.PaymentServiceTest">
+              <failure message="Timeout: Payment gateway did not respond within 5000ms" type="TimeoutException">Timeout: Payment gateway did not respond within 5000ms</failure>
+            </testcase>
+          </testsuite>
+          EOF
+          
+>>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
           echo "===== MAVEN TEST EXECUTION ====="
           echo "TEST_SUITE: UserService Tests"
           echo "TEST_TOTAL: 8"
@@ -106,3 +160,13 @@ jobs:
           echo "TEST_SKIPPED: 0"
           echo "[ERROR] BUILD FAILURE"
           exit 1
+<<<<<<< HEAD
+=======
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-backend
+          path: target/surefire-reports/*.xml
+>>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b

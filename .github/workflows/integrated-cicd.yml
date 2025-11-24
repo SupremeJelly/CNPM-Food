@@ -38,9 +38,52 @@ jobs:
       - name: Run tests for ${{ matrix.service }}
         working-directory: ./${{ matrix.service }}
         run: |
+          echo "JOB_START: test-backend-${{ matrix.service }}"
+          echo "STEP_START: Run tests for ${{ matrix.service }}"
+          
           # Run unit tests and integration tests
-          # mvn verify runs: compile -> test (unit tests with surefire) -> package -> integration-test (integration tests with failsafe) -> verify
-          mvn clean verify -B
+          if mvn clean verify -B 2>&1 | tee test-output.log; then
+            echo "STEP_STATUS: PASS"
+            TEST_EXIT=0
+          else
+            echo "STEP_STATUS: FAIL"
+            TEST_EXIT=1
+          fi
+          
+          # Parse test results from surefire/failsafe reports
+          TOTAL=0
+          FAILURES=0
+          ERRORS=0
+          
+          for REPORT_DIR in target/surefire-reports target/failsafe-reports; do
+            if [ -d "$REPORT_DIR" ]; then
+              for XML in $REPORT_DIR/TEST-*.xml; do
+                if [ -f "$XML" ]; then
+                  T=$(grep -oP 'tests="\K[0-9]+' "$XML" | head -1 || echo 0)
+                  F=$(grep -oP 'failures="\K[0-9]+' "$XML" | head -1 || echo 0)
+                  E=$(grep -oP 'errors="\K[0-9]+' "$XML" | head -1 || echo 0)
+                  TOTAL=$((TOTAL + T))
+                  FAILURES=$((FAILURES + F))
+                  ERRORS=$((ERRORS + E))
+                  
+                  # Extract failed test names
+                  grep -oP '<testcase.*name="\K[^"]+' "$XML" | while read TEST_NAME; do
+                    if grep -A 5 "name=\"$TEST_NAME\"" "$XML" | grep -q '<failure\|<error'; then
+                      echo "TEST_RUN: $TEST_NAME"
+                      echo "TEST_STATUS: FAIL"
+                      ERROR_MSG=$(grep -A 5 "name=\"$TEST_NAME\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 || echo "Test failed")
+                      echo "TEST_ERROR: $ERROR_MSG"
+                    fi
+                  done
+                fi
+              done
+            fi
+          done
+          
+          PASSED=$((TOTAL - FAILURES - ERRORS))
+          echo "TEST_SUMMARY: Total=$TOTAL Passed=$PASSED Failed=$((FAILURES + ERRORS))"
+          
+          exit $TEST_EXIT
 
       - name: Upload test results
         if: always()
@@ -77,7 +120,14 @@ jobs:
 
       - name: Run frontend tests
         working-directory: ./frontend
-        run: npm run test:ci
+        run: |
+          echo "JOB_START: test-frontend"
+          echo "STEP_START: Run frontend tests"
+          if npm run test:ci; then
+            echo "STEP_STATUS: PASS"
+          else
+            echo "STEP_STATUS: FAIL"
+          fi
         continue-on-error: true
 
       - name: Upload frontend test results
@@ -143,10 +193,17 @@ jobs:
 
       - name: Build all backend services (skip tests - already ran)
         run: |
+          echo "JOB_START: build-artifacts"
           for service in user-service order-service restaurant-service payment-service api-gateway; do
-            echo "Building $service..."
+            echo "STEP_START: Build $service"
             cd $service
-            mvn clean package -DskipTests -B
+            if mvn clean package -DskipTests -B; then
+              echo "STEP_STATUS: PASS"
+            else
+              echo "STEP_STATUS: FAIL"
+              cd ..
+              exit 1
+            fi
             cd ..
           done
 
@@ -661,7 +718,148 @@ jobs:
           path: artifacts
           if-no-files-found: ignore
 
-  # ========== STAGE 6: TEST SUMMARY (Always runs) ==========
+  # ========== STAGE 6: EXPORT LOGS TO LOKI ==========
+  export-logs-to-loki:
+    needs: [test-backend, test-frontend, build-artifacts, build-images, deploy-to-k8s]
+    runs-on: ubuntu-latest
+    if: always()
+    environment: staging
+    
+    steps:
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: test-results/
+        continue-on-error: true
+
+      - name: Push logs to Loki
+        env:
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USER: ${{ secrets.LOKI_USER }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          # Debug: Check if secrets are set
+          echo "Checking Loki configuration..."
+          if [ -z "$LOKI_URL" ]; then
+            echo "⚠️ LOKI_URL is not set. Please add it to GitHub repository secrets."
+            echo "Skipping log export."
+            exit 0
+          fi
+          if [ -z "$LOKI_USER" ]; then
+            echo "⚠️ LOKI_USER is not set. Using no authentication."
+          fi
+          echo "✅ LOKI_URL is configured: ${LOKI_URL:0:30}..."
+          
+          TS=$(date +%s)000000000
+          LOGS="[[\"$TS\",\"workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]]"
+          
+          # Job status summary
+          echo "=== Job Status Summary ==="
+          TOTAL_JOBS=0
+          PASSED_JOBS=0
+          FAILED_JOBS=0
+          
+          # Check each job status
+          for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images" "deploy-to-k8s"; do
+            TOTAL_JOBS=$((TOTAL_JOBS + 1))
+            case "$job_name" in
+              "test-backend")
+                STATUS="${{ needs.test-backend.result }}"
+                ;;
+              "test-frontend")
+                STATUS="${{ needs.test-frontend.result }}"
+                ;;
+              "build-artifacts")
+                STATUS="${{ needs.build-artifacts.result }}"
+                ;;
+              "build-images")
+                STATUS="${{ needs.build-images.result }}"
+                ;;
+              "deploy-to-k8s")
+                STATUS="${{ needs.deploy-to-k8s.result }}"
+                ;;
+            esac
+            
+            if [ "$STATUS" = "success" ]; then
+              PASSED_JOBS=$((PASSED_JOBS + 1))
+              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=pass\"]]"
+            elif [ "$STATUS" = "failure" ]; then
+              FAILED_JOBS=$((FAILED_JOBS + 1))
+              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=fail\"]]"
+            elif [ "$STATUS" = "skipped" ]; then
+              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=skipped\"]]"
+            fi
+          done
+          
+          # Add job summary log
+          LOGS="${LOGS%]]},[$TS,\"job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS\"]]"
+          echo "Jobs: Total=$TOTAL_JOBS Passed=$PASSED_JOBS Failed=$FAILED_JOBS"
+          
+          # Test results summary
+          echo "=== Test Results Summary ==="
+          TOTAL_TESTS=0
+          PASSED_TESTS=0
+          FAILED_TESTS=0
+          
+          if [ -d "test-results" ]; then
+            for dir in test-results/*/; do
+              [ -d "$dir" ] || continue
+              SERVICE=$(basename "$dir")
+              
+              # Aggregate tests per service
+              SVC_TESTS=0
+              SVC_FAILURES=0
+              SVC_ERRORS=0
+              
+              for XML in "$dir"/*.xml "$dir"/**/*.xml; do
+                [ -f "$XML" ] || continue
+                T=$(grep -oP 'tests="\K[0-9]+' "$XML" | head -1 || echo "0")
+                F=$(grep -oP 'failures="\K[0-9]+' "$XML" | head -1 || echo "0")
+                E=$(grep -oP 'errors="\K[0-9]+' "$XML" | head -1 || echo "0")
+                
+                SVC_TESTS=$((SVC_TESTS + T))
+                SVC_FAILURES=$((SVC_FAILURES + F))
+                SVC_ERRORS=$((SVC_ERRORS + E))
+                
+                # Extract failed test names with service context
+                if [ "$F" -gt 0 ] || [ "$E" -gt 0 ]; then
+                  grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null | while read TEST; do
+                    if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
+                      ERR=$(grep -A 3 "name=\"$TEST\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 | cut -c1-80)
+                      LOGS="${LOGS%]]},[$TS,\"test_failed service=$SERVICE test=$TEST error=${ERR:-Unknown}\"]]"
+                    fi
+                  done
+                fi
+              done
+              
+              SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
+              TOTAL_TESTS=$((TOTAL_TESTS + SVC_TESTS))
+              PASSED_TESTS=$((PASSED_TESTS + SVC_PASSED))
+              FAILED_TESTS=$((FAILED_TESTS + SVC_FAILURES + SVC_ERRORS))
+              
+              # Log per-service test summary
+              if [ "$SVC_TESTS" -gt 0 ]; then
+                LOGS="${LOGS%]]},[$TS,\"test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS))\"]]"
+                echo "Service: $SERVICE - Total=$SVC_TESTS Passed=$SVC_PASSED Failed=$((SVC_FAILURES + SVC_ERRORS))"
+              fi
+            done
+          fi
+          
+          # Add overall test summary
+          if [ "$TOTAL_TESTS" -gt 0 ]; then
+            LOGS="${LOGS%]]},[$TS,\"test_summary_total total=$TOTAL_TESTS passed=$PASSED_TESTS failed=$FAILED_TESTS\"]]"
+            echo "Tests Overall: Total=$TOTAL_TESTS Passed=$PASSED_TESTS Failed=$FAILED_TESTS"
+          fi
+          
+          PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\"},\"values\":$LOGS}]}"
+          
+          curl -s -X POST "$LOKI_URL/loki/api/v1/push" \
+            -u "$LOKI_USER:$LOKI_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" && echo "✅ Logs pushed to Loki successfully" || echo "❌ Failed to push logs"
+
+  # ========== STAGE 7: TEST SUMMARY (Always runs) ==========
   test-summary:
     needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
@@ -684,11 +882,32 @@ jobs:
               SERVICE=$(basename "$dir")
               echo "### $SERVICE" >> $GITHUB_STEP_SUMMARY
               
-              if [ -f "$dir"/*.xml ]; then
-                TESTS=$(grep -r "tests=" "$dir" | awk -F'"' '{sum += $2} END {print sum}' || echo "N/A")
-                FAILURES=$(grep -r "failures=" "$dir" | awk -F'"' '{sum += $2} END {print sum}' || echo "0")
-                echo "- Tests: $TESTS" >> $GITHUB_STEP_SUMMARY
-                echo "- Failures: $FAILURES" >> $GITHUB_STEP_SUMMARY
+              # Check if XML files exist
+              XML_COUNT=$(find "$dir" -name "*.xml" -type f 2>/dev/null | wc -l)
+              if [ "$XML_COUNT" -gt 0 ]; then
+                TESTS=$(grep -rh 'tests=' "$dir" 2>/dev/null | grep -oP 'tests="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
+                FAILURES=$(grep -rh 'failures=' "$dir" 2>/dev/null | grep -oP 'failures="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
+                ERRORS=$(grep -rh 'errors=' "$dir" 2>/dev/null | grep -oP 'errors="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
+                PASSED=$((TESTS - FAILURES - ERRORS))
+                
+                echo "- ✅ Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+                echo "- ❌ Failed: $FAILURES" >> $GITHUB_STEP_SUMMARY
+                echo "- ⚠️ Errors: $ERRORS" >> $GITHUB_STEP_SUMMARY
+                echo "- 📊 Total: $TESTS" >> $GITHUB_STEP_SUMMARY
+                
+                # Show failed tests (only if there are failures)
+                if [ "$FAILURES" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "#### ❌ Failed Tests:" >> $GITHUB_STEP_SUMMARY
+                  for XML in "$dir"/*.xml "$dir"/**/*.xml; do
+                    [ -f "$XML" ] || continue
+                    grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null | while read TEST; do
+                      if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
+                        echo "- \`$TEST\`" >> $GITHUB_STEP_SUMMARY
+                      fi
+                    done
+                  done
+                fi
               else
                 echo "- No test results found" >> $GITHUB_STEP_SUMMARY
               fi
