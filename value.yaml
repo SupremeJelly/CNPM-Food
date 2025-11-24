@@ -98,12 +98,12 @@ alloy:
     auth:
       type: basic
       username: "1445833"
-      password: "glc_eyJvIjoiMTU5MzAwMCIsIm4iOiJmbGVldC1mbGVldC10b2tlbiIsImsiOiI0a3hmUHZPTDVCOTZzSTZWWW0zNkU0MTkiLCJtIjp7InIiOiJ1cyJ9fQ=="
+      password: "glc_eyJvIjoiMTU5MzAwMCIsIm4iOiJmbGVldC1mbGfijofjslkamskldfzSTZWWW0zNkU0MTkiLCJtIjp7InIiOiJ1cyJ9fQ=="
   
   # Extra environment variables for Fleet Management integration
   extraEnv:
     - name: GCLOUD_RW_API_KEY
-      value: "glc_eyJvIjoiMTU5MzAwMCIsIm4iOiJzdGFjay0xNDQyMTQ4LWhtLXdyaXRlLWJvbWJhY2xhdCIsImsiOiJacU44bjIyNnpjNnRYVDZVMzFtR200SDQiLCJtIjp7InIiOiJwcm9kLWFwLXNvdXRoZWFzdC0xIn19"
+      value: "glc_eyJvIjoiMTU5MzAwMCIsIm4iOiJzdGFjay0xNDQyMTQ4LWhtLXdyaXRlLWJhY2t1cHRva2VuIiwiayI6ImhuOTUwNzJzNWs2OGFQWGFSeDhPdlhrOSIsIm0iOnsiciI6InByb2QtYXAtc291dGhlYXN0LTEifX0="
     - name: CLUSTER_NAME
       value: "docker-desktop"
     - name: NAMESPACE

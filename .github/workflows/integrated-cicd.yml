@@ -422,7 +422,11 @@ jobs:
     needs: build-images
     runs-on: self-hosted
     environment: staging
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
+    if: |
+      always() && 
+      needs.build-artifacts.result == 'success' &&
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
     permissions:
       contents: read
 
