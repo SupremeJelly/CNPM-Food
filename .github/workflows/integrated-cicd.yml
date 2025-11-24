@@ -723,6 +723,7 @@ jobs:
     needs: [test-backend, test-frontend, build-artifacts]
     runs-on: ubuntu-latest
     if: always()
+    environment: staging
     
     steps:
       - name: Download test results
@@ -738,10 +739,17 @@ jobs:
           LOKI_USER: ${{ secrets.LOKI_USER }}
           LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
         run: |
+          # Debug: Check if secrets are set
+          echo "Checking Loki configuration..."
           if [ -z "$LOKI_URL" ]; then
-            echo "Loki not configured, skipping"
+            echo "⚠️ LOKI_URL is not set. Please add it to GitHub repository secrets."
+            echo "Skipping log export."
             exit 0
           fi
+          if [ -z "$LOKI_USER" ]; then
+            echo "⚠️ LOKI_USER is not set. Using no authentication."
+          fi
+          echo "✅ LOKI_URL is configured: ${LOKI_URL:0:30}..."
           
           TS=$(date +%s)000000000
           LOGS="[[\"$TS\",\"workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]]"
