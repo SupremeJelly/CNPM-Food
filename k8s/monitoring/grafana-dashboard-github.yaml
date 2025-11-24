@@ -202,7 +202,8 @@ data:
           ],
           "options": {
             "showHeader": true,
-            "sortBy": [{"displayName": "Workflow", "desc": false}]
+            "sortBy": [{"displayName": "Workflow", "desc": false}],
+            "footer": {"countRows": false, "reducer": ["count"], "show": true}
           },
           "fieldConfig": {
             "defaults": {
@@ -215,26 +216,25 @@ data:
               {
                 "matcher": {"id": "byName", "options": "Workflow"},
                 "properties": [
-                  {"id": "custom.width", "value": 250},
+                  {"id": "custom.width", "value": 280},
                   {"id": "custom.displayMode", "value": "color-background"},
                   {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-red"}}
                 ]
               },
               {
-                "matcher": {"id": "byName", "options": "Job Name"},
+                "matcher": {"id": "byName", "options": "Failed Jobs"},
                 "properties": [
-                  {"id": "custom.width", "value": 250},
+                  {"id": "custom.width", "value": 400},
                   {"id": "custom.displayMode", "value": "color-background"},
                   {"id": "color", "value": {"mode": "fixed", "fixedColor": "dark-orange"}}
                 ]
               },
               {
-                "matcher": {"id": "byName", "options": "Status"},
+                "matcher": {"id": "byName", "options": "Count"},
                 "properties": [
                   {"id": "custom.width", "value": 80},
                   {"id": "custom.displayMode", "value": "color-text"},
-                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}},
-                  {"id": "mappings", "value": [{"type": "value", "options": {"1": {"text": "❌ FAILED", "color": "red"}}}]}
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
                 ]
               }
             ]
@@ -243,9 +243,26 @@ data:
             {
               "id": "organize",
               "options": {
-                "excludeByName": {"Time": true, "__name__": true, "instance": true, "job": false},
-                "indexByName": {"workflow": 0, "job": 1, "Value": 2},
-                "renameByName": {"Value": "Status", "workflow": "Workflow", "job": "Job Name"}
+                "excludeByName": {"Time": true, "__name__": true, "instance": true, "Value": true, "job": true, "app": true, "kubernetes_namespace": true, "kubernetes_pod_name": true, "pod_template_hash": true},
+                "indexByName": {"workflow": 0, "exported_job": 1},
+                "renameByName": {"workflow": "Workflow", "exported_job": "Job Name"}
+              }
+            },
+            {
+              "id": "groupBy",
+              "options": {
+                "fields": {
+                  "Workflow": {"aggregations": [], "operation": "groupby"},
+                  "Job Name": {"aggregations": ["uniqueValues"], "operation": "aggregate"}
+                }
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {"Workflow": 0, "Job Name (uniqueValues)": 1, "Job Name (count)": 2},
+                "renameByName": {"Job Name (uniqueValues)": "Failed Jobs", "Job Name (count)": "Count"}
               }
             }
           ]
@@ -316,7 +333,7 @@ data:
                     "aggregations": [],
                     "operation": "groupby"
                   },
-                  "job": {
+                  "exported_job": {
                     "aggregations": ["uniqueValues"],
                     "operation": "aggregate"
                   },
@@ -331,10 +348,10 @@ data:
               "id": "organize",
               "options": {
                 "excludeByName": {},
-                "indexByName": {"workflow": 0, "job (uniqueValues)": 1, "Value (count)": 2},
+                "indexByName": {"workflow": 0, "exported_job (uniqueValues)": 1, "Value (count)": 2},
                 "renameByName": {
                   "workflow": "Workflow",
-                  "job (uniqueValues)": "Failed Jobs",
+                  "exported_job (uniqueValues)": "Failed Jobs",
                   "Value (count)": "Count"
                 }
               }
