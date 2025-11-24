@@ -250,11 +250,17 @@ def poll_loop():
                                                                                     summary = f"TEST_SUMMARY: Total={test_stats['total']} Passed={test_stats['passed']} Failed={test_stats['failed']} Errors={test_stats['errors']}"
                                                                                     messages.append(summary)
                                                                                 
+<<<<<<< HEAD
+                                                                                # total observed
+                                                                                try:
+                                                                                    TESTCASE_TOTAL.labels(workflow=wf_name, job=job_name).inc(len(test_failures))
+=======
                                                                                 # total observed - use test_stats['total'] if available, otherwise count from failures
                                                                                 try:
                                                                                     total_tests = test_stats['total'] if test_stats['total'] > 0 else (test_stats['passed'] + test_stats['failed'] + test_stats['errors'])
                                                                                     if total_tests > 0:
                                                                                         TESTCASE_TOTAL.labels(workflow=wf_name, job=job_name).inc(total_tests)
+>>>>>>> c336b68ab1e4d9da9eb4005d36f9da7fde657e8b
                                                                                 except Exception:
                                                                                     pass
                                                                                 
