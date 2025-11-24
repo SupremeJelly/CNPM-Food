@@ -417,15 +417,12 @@ jobs:
           cache-to: type=inline
 
   # ========== STAGE 5: DEPLOY TO KUBERNETES (Only after successful image build) ==========
+  # TEMPORARILY DISABLED - Change "if: false" to original condition to re-enable
   deploy-to-k8s:
     needs: build-images
     runs-on: self-hosted
     environment: staging
-    if: |
-      always() && 
-      needs.build-artifacts.result == 'success' &&
-      github.event_name == 'push' && 
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
+    if: false
     permissions:
       contents: read
 
@@ -720,7 +717,7 @@ jobs:
 
   # ========== STAGE 6: EXPORT LOGS TO LOKI ==========
   export-logs-to-loki:
-    needs: [test-backend, test-frontend, build-artifacts, build-images, deploy-to-k8s]
+    needs: [test-backend, test-frontend, build-artifacts, build-images]
     runs-on: ubuntu-latest
     if: always()
     environment: staging
@@ -760,8 +757,8 @@ jobs:
           PASSED_JOBS=0
           FAILED_JOBS=0
           
-          # Check each job status
-          for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images" "deploy-to-k8s"; do
+          # Check each job status (deploy-to-k8s temporarily excluded)
+          for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images"; do
             TOTAL_JOBS=$((TOTAL_JOBS + 1))
             case "$job_name" in
               "test-backend")
@@ -775,9 +772,6 @@ jobs:
                 ;;
               "build-images")
                 STATUS="${{ needs.build-images.result }}"
-                ;;
-              "deploy-to-k8s")
-                STATUS="${{ needs.deploy-to-k8s.result }}"
                 ;;
             esac
             
