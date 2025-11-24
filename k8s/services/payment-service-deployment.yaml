@@ -78,6 +78,10 @@ kind: Service
 metadata:
   name: payment-service
   namespace: cnpm-food
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/actuator/prometheus"
+    prometheus.io/port: "8085"
   labels:
     app: payment-service
 spec:

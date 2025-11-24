@@ -856,6 +856,65 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" && echo "✅ Logs pushed to Loki successfully" || echo "❌ Failed to push logs"
 
+          # --- Additional: push per-service labeled streams to Loki (summary + failed tests)
+          # Builds a separate payload containing one stream per service with labels:
+          #  - service: <service name>
+          #  - type: test_summary | test_failed
+          # and posts it to Loki. This is additive only and does not modify existing payloads.
+          EXTRA_STREAMS=""
+          for dir in test-results/*/; do
+            [ -d "$dir" ] || continue
+            SERVICE=$(basename "$dir")
+
+            SVC_TESTS=0
+            SVC_FAILURES=0
+            SVC_ERRORS=0
+            for XML in "$dir"/*.xml "$dir"/**/*.xml; do
+              [ -f "$XML" ] || continue
+              T=$(grep -oP 'tests="\K[0-9]+' "$XML" | head -1 || echo "0")
+              F=$(grep -oP 'failures="\K[0-9]+' "$XML" | head -1 || echo "0")
+              E=$(grep -oP 'errors="\K[0-9]+' "$XML" | head -1 || echo "0")
+              SVC_TESTS=$((SVC_TESTS + T))
+              SVC_FAILURES=$((SVC_FAILURES + F))
+              SVC_ERRORS=$((SVC_ERRORS + E))
+            done
+            SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
+
+            # summary stream for this service (single value)
+            SUMMARY_JSON=$(printf '{"stream":{"service":"%s","type":"test_summary","workflow":"%s","run_id":"%s"},"values":[["%s","total=%s passed=%s failed=%s"]]}' "$SERVICE" "${{ github.workflow }}" "${{ github.run_id }}" "$TS" "$SVC_TESTS" "$SVC_PASSED" "$((SVC_FAILURES + SVC_ERRORS))")
+            if [ -z "$EXTRA_STREAMS" ]; then
+              EXTRA_STREAMS="$SUMMARY_JSON"
+            else
+              EXTRA_STREAMS="$EXTRA_STREAMS,$SUMMARY_JSON"
+            fi
+
+            # per-failed-test streams for this service
+            if [ "$SVC_FAILURES" -gt 0 ] || [ "$SVC_ERRORS" -gt 0 ]; then
+              for XML in "$dir"/*.xml "$dir"/**/**/*.xml; do
+                [ -f "$XML" ] || continue
+                grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null | while read TEST; do
+                  if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
+                    ERR=$(grep -A 3 "name=\"$TEST\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 | sed 's/"/\\"/g' | cut -c1-200)
+                    # escape quotes in test name
+                    T_ESC=$(echo "$TEST" | sed 's/"/\\"/g')
+                    FAIL_JSON=$(printf '{"stream":{"service":"%s","type":"test_failed","test":"%s","workflow":"%s","run_id":"%s"},"values":[["%s","error=%s"]]}' "$SERVICE" "$T_ESC" "${{ github.workflow }}" "${{ github.run_id }}" "$TS" "$ERR")
+                    EXTRA_STREAMS="$EXTRA_STREAMS,$FAIL_JSON"
+                  fi
+                done
+              done
+            fi
+          done
+
+          if [ -n "$EXTRA_STREAMS" ]; then
+            EXTRA_PAYLOAD="{\"streams\":[${EXTRA_STREAMS}] }"
+            curl -s -X POST "$LOKI_URL" \
+              -u "$LOKI_USER:$LOKI_PASSWORD" \
+              -H "Content-Type: application/json" \
+              -d "$EXTRA_PAYLOAD" && echo "✅ Per-service logs pushed to Loki successfully" || echo "❌ Failed to push per-service logs"
+          else
+            echo "No per-service test results to push to Loki."
+          fi
+
   # ========== STAGE 7: TEST SUMMARY (Always runs) ==========
   test-summary:
     needs: [test-backend, test-frontend]

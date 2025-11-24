@@ -76,6 +76,10 @@ kind: Service
 metadata:
   name: restaurant-service
   namespace: cnpm-food
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/actuator/prometheus"
+    prometheus.io/port: "8082"
   labels:
     app: restaurant-service
 spec:

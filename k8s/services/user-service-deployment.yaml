@@ -78,6 +78,10 @@ kind: Service
 metadata:
   name: user-service
   namespace: cnpm-food
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/actuator/prometheus"
+    prometheus.io/port: "8081"
   labels:
     app: user-service
 spec:
