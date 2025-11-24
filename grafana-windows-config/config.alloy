@@ -1,0 +1,11 @@
+# Grafana Alloy configuration file (key=value)
+# Replace values below with your real credentials and endpoints.
+
+ALLOY_LICENSE="<YOUR_ALLOY_LICENSE_TOKEN>"
+GF_SECURITY_ADMIN_PASSWORD="changeme"
+LOKI_URL="http://loki-stack.monitoring.svc.cluster.local:3100"
+LOKI_USER=""
+LOKI_PASSWORD=""
+
+# Optional: Grafana install root. If empty, script will try to discover from registry.
+GRAFANA_ROOT=""

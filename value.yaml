@@ -1,0 +1,89 @@
+# ==========================================================
+# CẤU HÌNH CHO GRAFANA K8S MONITORING (ALLOY HELM CHART)
+# ==========================================================
+
+cluster:
+  name: docker-desktop-dev  # Tên Cluster (sẽ hiện trên Dashboard Grafana)
+
+# ----------------------------------------------------------
+# 1. CẤU HÌNH KẾT NỐI (QUAN TRỌNG NHẤT)
+# Bạn cần điền thông tin lấy từ Grafana Cloud vào đây
+# ----------------------------------------------------------
+externalServices:
+  # Cấu hình gửi METRICS (Dữ liệu biểu đồ)
+  prometheus:
+    # URL Prometheus (Thường kết thúc bằng /api/v1/push)
+    host: https://prometheus-prod-xxx.grafana.net/api/v1/push
+    basicAuth:
+      username: "USER_ID_PROMETHEUS" # <--- Thay User ID Prometheus vào đây
+      password: "TOKEN_CUA_BAN"      # <--- Thay Token (Access Policy) vào đây
+
+  # Cấu hình gửi LOGS (Dữ liệu chữ)
+  loki:
+    # URL Loki (Thường kết thúc bằng /loki/api/v1/push)
+    host: https://logs-prod-020.grafana.net/loki/api/v1/push
+    basicAuth:
+      username: "1399942"            # <--- Thay User ID Loki (như bạn đã có)
+      password: "TOKEN_CUA_BAN"      # <--- Thay Token vào đây
+
+# ----------------------------------------------------------
+# 2. CÁC TÍNH NĂNG MUỐN BẬT
+# ----------------------------------------------------------
+metrics:
+  enabled: true
+  
+  # Bật tính năng đo sức khỏe máy chủ (CPU/RAM của Node)
+  node-exporter:
+    enabled: true
+
+  # Bật tính năng đo trạng thái K8s (Pod crash, restart...)
+  kube-state-metrics:
+    enabled: true
+
+  # Tắt tính năng đo chi phí (để đỡ rối)
+  cost:
+    enabled: false
+
+logs:
+  enabled: true
+  
+  # Tự động đi gom log của tất cả Pods trong cluster
+  pod_logs:
+    enabled: true
+
+# ----------------------------------------------------------
+# 3. CẤU HÌNH ALLOY (CƠ CHẾ TỰ ĐỘNG TÌM KIẾM)
+# ----------------------------------------------------------
+alloy:
+  config:
+    # Đoạn này giúp Alloy nhận diện được Spring Boot Actuator
+    # Nó sẽ tìm các Pod có annotation để cào dữ liệu
+    extra_scrape_configs: |
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          # Chỉ cào những Pod có annotation prometheus.io/scrape = true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          # Lấy đường dẫn từ annotation prometheus.io/path (Ví dụ: /actuator/prometheus)
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          # Lấy cổng từ annotation prometheus.io/port
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          # Gán nhãn namespace và pod name cho đẹp
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
