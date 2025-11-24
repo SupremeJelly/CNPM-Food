@@ -717,7 +717,7 @@ jobs:
 
   # ========== STAGE 6: EXPORT LOGS TO LOKI ==========
   export-logs-to-loki:
-    needs: [test-backend, test-frontend, build-artifacts, build-images]
+    needs: [test-backend, test-frontend, build-artifacts, build-images, deploy-to-k8s]
     runs-on: ubuntu-latest
     if: always()
     environment: staging
@@ -736,125 +736,154 @@ jobs:
           LOKI_USER: ${{ secrets.LOKI_USER }}
           LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
         run: |
-          # --- 1. CONFIGURATION CHECKS ---
+          # Debug: Check if secrets are set
+          echo "Checking Loki configuration..."
           if [ -z "$LOKI_URL" ]; then
-            echo "⚠️ LOKI_URL is not set."
+            echo "⚠️ LOKI_URL is not set. Please add it to GitHub repository secrets."
+            echo "Skipping log export."
             exit 0
           fi
+          if [ -z "$LOKI_USER" ]; then
+            echo "⚠️ LOKI_USER is not set. Using no authentication."
+          fi
+          echo "✅ LOKI_URL is configured: ${LOKI_URL:0:30}..."
           
-          # --- 2. HELPER FUNCTION TO SEND LOGS ---
-          # Hàm này giúp gửi log với Label Service/Suite tùy chỉnh
-          send_to_loki() {
-            local SERVICE_LBL=$1
-            local SUITE_LBL=$2
-            local LOG_VALUES=$3
-            local TS=$(date +%s)000000000
-
-            if [ -z "$LOG_VALUES" ]; then return; fi
-
-            # Tạo Label: Workflow và RunID luôn có mặt
-            local LABELS="\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\""
-            
-            # Thêm label Service và Testsuite (nếu có)
-            if [ "$SERVICE_LBL" != "general" ]; then LABELS="$LABELS,\"service\":\"$SERVICE_LBL\""; fi
-            if [ "$SUITE_LBL" != "general" ]; then LABELS="$LABELS,\"testsuite\":\"$SUITE_LBL\""; fi
-
-            local PAYLOAD="{\"streams\":[{\"stream\":{$LABELS},\"values\":[$LOG_VALUES]}]}"
-
-            curl -s -X POST "$LOKI_URL" \
-              -u "$LOKI_USER:$LOKI_PASSWORD" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" > /dev/null
-          }
-
-          # Hàm format log JSON
-          format_log() {
-            local MSG=$(echo "$1" | sed 's/"/\\"/g')
-            local TS=$(date +%s)000000000
-            echo "[\"$TS\", \"$MSG\"]"
-          }
-
-          echo "🚀 Starting Log Export..."
-
-          # --- 3. PHẦN GIỮ LẠI THÔNG TIN BAN ĐẦU (GENERAL LOGS) ---
-          # Đây là phần bạn lo lắng bị mất. Tôi giữ nguyên nội dung text của bạn.
+          TS=$(date +%s)000000000
+          # Base stream values (summary-level)
+          LOGS="[[\"$TS\",\"workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]]"
           
-          # 3.1. Initial workflow info (Giữ nguyên dòng này của bạn)
-          INFO_LOG=$(format_log "workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}")
-          GENERAL_LOGS="$INFO_LOG"
-
-          # 3.2. Job Status Summary (Giữ nguyên logic đếm job)
+          # Job status summary
+          echo "=== Job Status Summary ==="
           TOTAL_JOBS=0
           PASSED_JOBS=0
           FAILED_JOBS=0
-
-          for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images"; do
+          
+          # Check each job status
+          for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images" "deploy-to-k8s"; do
             TOTAL_JOBS=$((TOTAL_JOBS + 1))
             case "$job_name" in
-              "test-backend") STATUS="${{ needs.test-backend.result }}" ;;
-              "test-frontend") STATUS="${{ needs.test-frontend.result }}" ;;
-              "build-artifacts") STATUS="${{ needs.build-artifacts.result }}" ;;
-              "build-images") STATUS="${{ needs.build-images.result }}" ;;
+              "test-backend")
+                STATUS="${{ needs.test-backend.result }}"
+                ;;
+              "test-frontend")
+                STATUS="${{ needs.test-frontend.result }}"
+                ;;
+              "build-artifacts")
+                STATUS="${{ needs.build-artifacts.result }}"
+                ;;
+              "build-images")
+                STATUS="${{ needs.build-images.result }}"
+                ;;
+              "deploy-to-k8s")
+                STATUS="${{ needs.deploy-to-k8s.result }}"
+                ;;
             esac
             
-            ENTRY=$(format_log "job_status job=$job_name status=$STATUS")
-            GENERAL_LOGS="$GENERAL_LOGS,$ENTRY"
+            # Append to base summary stream
+            if [ "$STATUS" = "success" ]; then
+              PASSED_JOBS=$((PASSED_JOBS + 1))
+              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=pass\"]]"
+            elif [ "$STATUS" = "failure" ]; then
+              FAILED_JOBS=$((FAILED_JOBS + 1))
+              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=fail\"]]"
+            elif [ "$STATUS" = "skipped" ]; then
+              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=skipped\"]]"
+            fi
 
-            if [ "$STATUS" = "success" ]; then PASSED_JOBS=$((PASSED_JOBS + 1)); fi
-            if [ "$STATUS" = "failure" ]; then FAILED_JOBS=$((FAILED_JOBS + 1)); fi
+            # Also POST a separate stream for this job status with label `workflow_step`
+            JOB_PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"workflow_step\":\"${job_name}\"},\"values\":[[\"${TS}\",\"job_status job=${job_name} status=${STATUS}\"]]}]}"
+            curl -s -X POST "${LOKI_URL}/loki/api/v1/push" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${JOB_PAYLOAD}" || true
           done
-
-          SUMMARY=$(format_log "job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS")
-          GENERAL_LOGS="$GENERAL_LOGS,$SUMMARY"
-
-          # GỬI LẦN 1: Thông tin chung (Service='general')
-          send_to_loki "general" "general" "$GENERAL_LOGS"
-          echo "✅ General info & Job status sent."
-
-
-          # --- 4. PHẦN TEST RESULTS (Có Label Service & Suite riêng) ---
+          
+          # Add job summary log
+          LOGS="${LOGS%]]},[$TS,\"job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS\"]]"
+          echo "Jobs: Total=$TOTAL_JOBS Passed=$PASSED_JOBS Failed=$FAILED_JOBS"
+          
+          # Test results summary
+          echo "=== Test Results Summary ==="
+          TOTAL_TESTS=0
+          PASSED_TESTS=0
+          FAILED_TESTS=0
+          
           if [ -d "test-results" ]; then
             for dir in test-results/*/; do
               [ -d "$dir" ] || continue
               SERVICE=$(basename "$dir")
               
-              # Duyệt từng file XML (tương ứng Test Suite)
+              # Aggregate tests per service
+              SVC_TESTS=0
+              SVC_FAILURES=0
+              SVC_ERRORS=0
+              
               for XML in "$dir"/*.xml "$dir"/**/*.xml; do
                 [ -f "$XML" ] || continue
-                
-                # Lấy tên Test Suite để làm Label
-                SUITE=$(grep -oP '<testsuite.*?name="\K[^"]+' "$XML" | head -1 || basename "$XML" .xml)
-                
-                # Parse kết quả
                 T=$(grep -oP 'tests="\K[0-9]+' "$XML" | head -1 || echo "0")
                 F=$(grep -oP 'failures="\K[0-9]+' "$XML" | head -1 || echo "0")
                 E=$(grep -oP 'errors="\K[0-9]+' "$XML" | head -1 || echo "0")
                 
-                # Log tổng quan của Suite
-                SUITE_SUMMARY=$(format_log "test_suite_summary total=$T failures=$F errors=$E")
-                SUITE_LOGS="$SUITE_SUMMARY"
-
-                # Nếu có lỗi, parse chi tiết lỗi
+                SVC_TESTS=$((SVC_TESTS + T))
+                SVC_FAILURES=$((SVC_FAILURES + F))
+                SVC_ERRORS=$((SVC_ERRORS + E))
+                
+                # Extract failed test names with service context
                 if [ "$F" -gt 0 ] || [ "$E" -gt 0 ]; then
-                  grep -oP '<testcase.*?classname="\K[^"]+.*?name="[^"]+"' "$XML" 2>/dev/null | while IFS='"' read -r CLASSNAME _ TESTNAME _; do
-                    if grep "classname=\"$CLASSNAME\".*name=\"$TESTNAME\"" "$XML" | grep -A 5 . | grep -q '<failure\|<error'; then
-                      ERR_MSG=$(grep "classname=\"$CLASSNAME\".*name=\"$TESTNAME\"" "$XML" | grep -A 5 . | grep -oP 'message="\K[^"]+' | head -1 | cut -c1-150)
-                      FAIL_LOG=$(format_log "TEST_FAIL class=$CLASSNAME test=$TESTNAME error='$ERR_MSG'")
-                      
-                      # Gửi ngay log lỗi kèm label đúng
-                      send_to_loki "$SERVICE" "$SUITE" "$FAIL_LOG"
+                  # Try to extract testsuite or classname for labeling
+                  TESTSUITE=$(grep -oP '<testsuite[^>]*name="\K[^\"]+' "$XML" | head -1 || true)
+                  if [ -z "$TESTSUITE" ]; then
+                    TESTSUITE=$(grep -oP '<testcase[^>]*classname="\K[^\"]+' "$XML" | head -1 || true)
+                  fi
+
+                  grep -oP '<testcase.*?name="\K[^\"]+' "$XML" 2>/dev/null | while read TEST; do
+                    if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
+                      ERR=$(grep -A 3 "name=\"$TEST\"" "$XML" | grep -oP 'message="\K[^"\n]+' | head -1 || echo "Unknown")
+                      # Append to base stream for backwards compatibility
+                      LOGS="${LOGS%]]},[$TS,\"test_failed service=$SERVICE test=$TEST error=${ERR//\"/}'\"]]"
+
+                      # Determine source workflow step name (backend tests come from test-backend job)
+                      if echo "$SERVICE" | grep -qE 'user|order|restaurant|payment|api-gateway'; then
+                        SRC_JOB="test-backend"
+                      else
+                        SRC_JOB="test-frontend"
+                      fi
+
+                      # Build a labeled stream for this failed test
+                      FAILED_PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"service\":\"${SERVICE}\",\"testsuite\":\"${TESTSUITE}\",\"test\":\"${TEST}\",\"status\":\"fail\",\"source_job\":\"${SRC_JOB}\"},\"values\":[[\"${TS}\",\"test_failed service=${SERVICE} test=${TEST} error=${ERR}\"]]}]}"
+                      curl -s -X POST "${LOKI_URL}/loki/api/v1/push" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${FAILED_PAYLOAD}" || true
+
                     fi
                   done
                 fi
-
-                # Gửi log summary của Suite kèm label đúng
-                send_to_loki "$SERVICE" "$SUITE" "$SUITE_LOGS"
-                
               done
+              
+              SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
+              TOTAL_TESTS=$((TOTAL_TESTS + SVC_TESTS))
+              PASSED_TESTS=$((PASSED_TESTS + SVC_PASSED))
+              FAILED_TESTS=$((FAILED_TESTS + SVC_FAILURES + SVC_ERRORS))
+              
+              # Log per-service test summary
+              if [ "$SVC_TESTS" -gt 0 ]; then
+                LOGS="${LOGS%]]},[$TS,\"test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS))\"]]"
+                echo "Service: $SERVICE - Total=$SVC_TESTS Passed=$SVC_PASSED Failed=$((SVC_FAILURES + SVC_ERRORS))"
+
+                # Also POST a labeled stream for the service test summary
+                SUMMARY_PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"service\":\"${SERVICE}\",\"type\":\"test_summary\"},\"values\":[[\"${TS}\",\"test_summary service=${SERVICE} total=${SVC_TESTS} passed=${SVC_PASSED} failed=$((SVC_FAILURES + SVC_ERRORS))\"]]}]}"
+                curl -s -X POST "${LOKI_URL}/loki/api/v1/push" -u "${LOKI_USER}:${LOKI_PASSWORD}" -H "Content-Type: application/json" -d "${SUMMARY_PAYLOAD}" || true
+              fi
             done
           fi
           
-          echo "✅ All logs processed."
+          # Add overall test summary
+          if [ "$TOTAL_TESTS" -gt 0 ]; then
+            LOGS="${LOGS%]]},[$TS,\"test_summary_total total=$TOTAL_TESTS passed=$PASSED_TESTS failed=$FAILED_TESTS\"]]"
+            echo "Tests Overall: Total=$TOTAL_TESTS Passed=$PASSED_TESTS Failed=$FAILED_TESTS"
+          fi
+          
+          PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\"},\"values\":$LOGS}]}"
+          
+          curl -s -X POST "$LOKI_URL/loki/api/v1/push" \
+            -u "$LOKI_USER:$LOKI_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" && echo "✅ Logs pushed to Loki successfully" || echo "❌ Failed to push logs"
 
   # ========== STAGE 7: TEST SUMMARY (Always runs) ==========
   test-summary:
