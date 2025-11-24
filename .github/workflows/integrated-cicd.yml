@@ -804,6 +804,7 @@ jobs:
           
           # Test results summary
           echo "=== Test Results Summary ==="
+          add_log "📊 Test Results Summary"
           TOTAL_TESTS=0
           PASSED_TESTS=0
           FAILED_TESTS=0
@@ -812,6 +813,14 @@ jobs:
             for dir in test-results/*/; do
               [ -d "$dir" ] || continue
               SERVICE=$(basename "$dir")
+              
+              # Check if XML files exist
+              XML_COUNT=$(find "$dir" -name "*.xml" -type f 2>/dev/null | wc -l)
+              if [ "$XML_COUNT" -eq 0 ]; then
+                add_log "⚠️ $SERVICE: No test results found"
+                echo "Service: $SERVICE - No test results"
+                continue
+              fi
               
               # Aggregate tests per service
               SVC_TESTS=0
@@ -827,16 +836,6 @@ jobs:
                 SVC_TESTS=$((SVC_TESTS + T))
                 SVC_FAILURES=$((SVC_FAILURES + F))
                 SVC_ERRORS=$((SVC_ERRORS + E))
-                
-                # Extract failed test names with service context
-                if [ "$F" -gt 0 ] || [ "$E" -gt 0 ]; then
-                  grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null | while read TEST; do
-                    if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
-                      ERR=$(grep -A 3 "name=\"$TEST\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 | cut -c1-80)
-                      add_log "test_failed service=$SERVICE test=$TEST error=${ERR:-Unknown}"
-                    fi
-                  done
-                fi
               done
               
               SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
@@ -844,17 +843,40 @@ jobs:
               PASSED_TESTS=$((PASSED_TESTS + SVC_PASSED))
               FAILED_TESTS=$((FAILED_TESTS + SVC_FAILURES + SVC_ERRORS))
               
-              # Log per-service test summary
-              if [ "$SVC_TESTS" -gt 0 ]; then
-                add_log "test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS))"
-                echo "Service: $SERVICE - Total=$SVC_TESTS Passed=$SVC_PASSED Failed=$((SVC_FAILURES + SVC_ERRORS))"
+              # Log service header with summary
+              add_log "### $SERVICE"
+              add_log "✅ Passed: $SVC_PASSED | ❌ Failed: $((SVC_FAILURES + SVC_ERRORS)) | ⚠️ Errors: $SVC_ERRORS | 📊 Total: $SVC_TESTS"
+              echo "Service: $SERVICE - Total=$SVC_TESTS Passed=$SVC_PASSED Failed=$((SVC_FAILURES + SVC_ERRORS))"
+              
+              # Extract and log failed test details with test suite info
+              if [ "$SVC_FAILURES" -gt 0 ] || [ "$SVC_ERRORS" -gt 0 ]; then
+                add_log "#### ❌ Failed Tests in $SERVICE:"
+                for XML in "$dir"/*.xml "$dir"/**/*.xml; do
+                  [ -f "$XML" ] || continue
+                  
+                  # Get test suite name from XML filename or testsuite tag
+                  SUITE=$(grep -oP '<testsuite.*?name="\K[^"]+' "$XML" | head -1 || basename "$XML" .xml)
+                  
+                  # Find failed tests in this suite
+                  grep -oP '<testcase.*?classname="\K[^"]+.*?name="[^"]+"' "$XML" 2>/dev/null | while IFS='"' read -r CLASSNAME _ TESTNAME _; do
+                    # Check if this specific test failed
+                    if grep "classname=\"$CLASSNAME\".*name=\"$TESTNAME\"" "$XML" | grep -A 5 . | grep -q '<failure\|<error'; then
+                      ERR=$(grep "classname=\"$CLASSNAME\".*name=\"$TESTNAME\"" "$XML" | grep -A 5 . | grep -oP 'message="\K[^"]+' | head -1 | cut -c1-120)
+                      add_log "  - Suite: $SUITE | Class: $CLASSNAME | Test: $TESTNAME"
+                      add_log "    Error: ${ERR:-Unknown error}"
+                    fi
+                  done
+                done
               fi
+              
+              add_log ""
             done
           fi
           
           # Add overall test summary
           if [ "$TOTAL_TESTS" -gt 0 ]; then
-            add_log "test_summary_total total=$TOTAL_TESTS passed=$PASSED_TESTS failed=$FAILED_TESTS"
+            add_log "## 📈 Overall Test Summary"
+            add_log "✅ Total Passed: $PASSED_TESTS | ❌ Total Failed: $FAILED_TESTS | 📊 Total Tests: $TOTAL_TESTS"
             echo "Tests Overall: Total=$TOTAL_TESTS Passed=$PASSED_TESTS Failed=$FAILED_TESTS"
           fi
           
