@@ -749,7 +749,19 @@ jobs:
           echo "✅ LOKI_URL is configured: ${LOKI_URL:0:30}..."
           
           TS=$(date +%s)000000000
-          LOGS="[[\"$TS\",\"workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]]"
+          LOGS=""
+          
+          # Helper function to add log entry
+          add_log() {
+            if [ -z "$LOGS" ]; then
+              LOGS="[\"$TS\",\"$1\"]"
+            else
+              LOGS="$LOGS,[\"$TS\",\"$1\"]"
+            fi
+          }
+          
+          # Initial workflow info
+          add_log "workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}"
           
           # Job status summary
           echo "=== Job Status Summary ==="
@@ -777,17 +789,17 @@ jobs:
             
             if [ "$STATUS" = "success" ]; then
               PASSED_JOBS=$((PASSED_JOBS + 1))
-              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=pass\"]]"
+              add_log "job_status job=$job_name status=pass"
             elif [ "$STATUS" = "failure" ]; then
               FAILED_JOBS=$((FAILED_JOBS + 1))
-              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=fail\"]]"
+              add_log "job_status job=$job_name status=fail"
             elif [ "$STATUS" = "skipped" ]; then
-              LOGS="${LOGS%]]},[$TS,\"job_status job=$job_name status=skipped\"]]"
+              add_log "job_status job=$job_name status=skipped"
             fi
           done
           
           # Add job summary log
-          LOGS="${LOGS%]]},[$TS,\"job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS\"]]"
+          add_log "job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS"
           echo "Jobs: Total=$TOTAL_JOBS Passed=$PASSED_JOBS Failed=$FAILED_JOBS"
           
           # Test results summary
@@ -821,7 +833,7 @@ jobs:
                   grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null | while read TEST; do
                     if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
                       ERR=$(grep -A 3 "name=\"$TEST\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 | cut -c1-80)
-                      LOGS="${LOGS%]]},[$TS,\"test_failed service=$SERVICE test=$TEST error=${ERR:-Unknown}\"]]"
+                      add_log "test_failed service=$SERVICE test=$TEST error=${ERR:-Unknown}"
                     fi
                   done
                 fi
@@ -834,7 +846,7 @@ jobs:
               
               # Log per-service test summary
               if [ "$SVC_TESTS" -gt 0 ]; then
-                LOGS="${LOGS%]]},[$TS,\"test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS))\"]]"
+                add_log "test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS))"
                 echo "Service: $SERVICE - Total=$SVC_TESTS Passed=$SVC_PASSED Failed=$((SVC_FAILURES + SVC_ERRORS))"
               fi
             done
@@ -842,9 +854,12 @@ jobs:
           
           # Add overall test summary
           if [ "$TOTAL_TESTS" -gt 0 ]; then
-            LOGS="${LOGS%]]},[$TS,\"test_summary_total total=$TOTAL_TESTS passed=$PASSED_TESTS failed=$FAILED_TESTS\"]]"
+            add_log "test_summary_total total=$TOTAL_TESTS passed=$PASSED_TESTS failed=$FAILED_TESTS"
             echo "Tests Overall: Total=$TOTAL_TESTS Passed=$PASSED_TESTS Failed=$FAILED_TESTS"
           fi
+          
+          # Wrap logs in array brackets
+          LOGS="[$LOGS]"
           
           PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\"},\"values\":$LOGS}]}"
           
