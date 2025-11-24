@@ -851,7 +851,7 @@ jobs:
           
           PAYLOAD="{\"streams\":[{\"stream\":{\"wflog\":\"github-actions\",\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\"},\"values\":$LOGS}]}"
           
-          curl -s -X POST "$LOKI_URL/loki/api/v1/push" \
+          curl -s -X POST "$LOKI_URL" \
             -u "$LOKI_USER:$LOKI_PASSWORD" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" && echo "✅ Logs pushed to Loki successfully" || echo "❌ Failed to push logs"
