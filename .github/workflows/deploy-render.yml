@@ -2,7 +2,7 @@ name: Deploy to Render
 
 on:
   push:
-    # branches: [main, src]
+    # branches: [main]
     branches: [main]
   pull_request:
     branches: [main]
