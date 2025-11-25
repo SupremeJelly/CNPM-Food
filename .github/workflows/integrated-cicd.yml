@@ -239,7 +239,8 @@ jobs:
           if [ -d "test-results" ]; then
             for dir in test-results/*/; do
               [ -d "$dir" ] || continue
-              SERVICE=$(basename "$dir")
+              RAW_NAME=$(basename "$dir")
+              SERVICE=${RAW_NAME#test-results-}
               SVC_TESTS=0; SVC_FAILURES=0; SVC_ERRORS=0; FAILED_NAMES_LIST=""
               for XML in "$dir"/*.xml "$dir"/**/**/*.xml; do
                 [ -f "$XML" ] || continue
@@ -257,7 +258,7 @@ jobs:
               SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
               TOTAL_TESTS_ALL=$((TOTAL_TESTS_ALL + SVC_TESTS))
               FAILED_TESTS_ALL=$((FAILED_TESTS_ALL + SVC_FAILURES + SVC_ERRORS))
-              CLEAN_FAILED_NAMES=$(echo "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^ *//;s/ *$//;s/^,//;s/,,/,/g')
+              CLEAN_FAILED_NAMES=$(echo "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^ *//;s/ *$//;s/^,//;s/,,/,/g;s/,$//')
               MSG="type=test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS)) failed_cases=\"$CLEAN_FAILED_NAMES\""
               STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$MSG")
               if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$STREAM_JSON"; else EXTRA_STREAMS="$EXTRA_STREAMS,$STREAM_JSON"; fi

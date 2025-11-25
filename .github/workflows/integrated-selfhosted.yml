@@ -777,7 +777,8 @@ jobs:
             
             for dir in test-results/*/; do
               [ -d "$dir" ] || continue
-              SERVICE=$(basename "$dir")
+              RAW_NAME=$(basename "$dir")
+              SERVICE=${RAW_NAME#test-results-}
               
               SVC_TESTS=0
               SVC_FAILURES=0
@@ -815,7 +816,7 @@ jobs:
               FAILED_TESTS_ALL=$((FAILED_TESTS_ALL + SVC_FAILURES + SVC_ERRORS))
               
               # Làm sạch danh sách tên lỗi (thay xuống dòng bằng dấu phẩy)
-              CLEAN_FAILED_NAMES=$(echo "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^ *//;s/ *$//;s/^,//;s/,,/,/g')
+              CLEAN_FAILED_NAMES=$(echo "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^ *//;s/ *$//;s/^,//;s/,,/,/g;s/,$//')
 
               # SỬA: Tạo log message đầy đủ thông tin dạng key=value
               # Format: type=test_summary service=user-service total=10 ... failed_cases="TestA,TestB"
@@ -839,7 +840,8 @@ jobs:
               if [ -d "test-results" ]; then
                 for dir in test-results/*/; do
                   [ -d "$dir" ] || continue
-                  SERVICE=$(basename "$dir")
+                  RAW_NAME=$(basename "$dir")
+                  SERVICE=${RAW_NAME#test-results-}
 
                   SVC_TESTS=0
                   SVC_FAILURES=0
@@ -919,7 +921,8 @@ jobs:
           
           for dir in test-results/*/; do
             if [ -d "$dir" ]; then
-              SERVICE=$(basename "$dir")
+              RAW_NAME=$(basename "$dir")
+              SERVICE=${RAW_NAME#test-results-}
               echo "### $SERVICE" >> $GITHUB_STEP_SUMMARY
               
               # Check if XML files exist
