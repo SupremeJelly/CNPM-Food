@@ -3,9 +3,9 @@ name: Test Order Service
 # Kích hoạt CI mỗi khi có ai push code lên nhánh 'main'
 on:
   push:
-    branches: [ "src" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "src" ]
+    branches: [ "main" ]
 
 jobs:
   build:
