@@ -762,7 +762,27 @@ jobs:
             fi
           done
           
-          # Tổng kết Jobs
+          # Build a small human-readable jobs block for the summary (keeps multi-line formatting)
+          JOBS_TEXT="### Workflow: ${{ github.workflow }} (run ${{ github.run_id }})\n\nJobs:\n"
+          for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images" "deploy-to-k8s"; do
+            case "$job_name" in
+              "test-backend") STATUS="${{ needs.test-backend.result }}" ;;
+              "test-frontend") STATUS="${{ needs.test-frontend.result }}" ;;
+              "build-artifacts") STATUS="${{ needs.build-artifacts.result }}" ;;
+              "build-images") STATUS="${{ needs.build-images.result }}" ;;
+              "deploy-to-k8s") STATUS="${{ needs.deploy-to-k8s.result }}" ;;
+            esac
+            if [ "$STATUS" = "success" ]; then
+              SSTAT=PASS
+            elif [ "$STATUS" = "failure" ]; then
+              SSTAT=FAIL
+            else
+              SSTAT=SKIPPED
+            fi
+            JOBS_TEXT="$JOBS_TEXT- $job_name : $SSTAT\n"
+          done
+
+          # Tổng kết Jobs (machine-friendly)
           MSG="type=job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS"
           ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
           LOGS="${LOGS%]]},[\"$TS\",\"$ESC_MSG\"]]"
@@ -850,7 +870,8 @@ jobs:
 
               # --- 2.5 BUILD HUMAN-READABLE SUMMARY (formatted like test-summary job) ---
               # Create a decorated, non-duplicate summary that mirrors Stage 7 formatting
-              SUMMARY_TEXT=""
+              # Prepend the workflow/jobs human-readable block we built earlier
+              SUMMARY_TEXT="$JOBS_TEXT\n"
               if [ -d "test-results" ]; then
                 for dir in test-results/*/; do
                   [ -d "$dir" ] || continue
@@ -873,12 +894,11 @@ jobs:
 
                   SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
 
-                  # Append decorated block similar to Stage 7 output
-                  SUMMARY_TEXT="$SUMMARY_TEXT\n### $SERVICE\n\n✅ Passed: $SVC_PASSED | ❌ Failed: $SVC_FAILURES | ⚠️ Errors: $SVC_ERRORS | 📊 Total: $SVC_TESTS\n\n"
+                  # Append decorated block similar to Stage 7 output (multi-line for readability)
+                  SUMMARY_TEXT="$SUMMARY_TEXT\n\n### $SERVICE\n\n✅ Passed: $SVC_PASSED\n❌ Failed: $SVC_FAILURES\n⚠️ Errors: $SVC_ERRORS\n📊 Total: $SVC_TESTS\n\n"
                 done
-
                 TOTAL_PASSED=$((TOTAL_TESTS_ALL - FAILED_TESTS_ALL))
-                SUMMARY_TEXT="$SUMMARY_TEXT\n✅ Total Passed: $TOTAL_PASSED | ❌ Total Failed: $FAILED_TESTS_ALL | 📊 Total Tests: $TOTAL_TESTS_ALL\n"
+                SUMMARY_TEXT="$SUMMARY_TEXT\n✅ Total Passed: $TOTAL_PASSED\n❌ Total Failed: $FAILED_TESTS_ALL\n📊 Total Tests: $TOTAL_TESTS_ALL\n"
               fi
 
               # Escape summary for safe JSON inclusion (escape backslashes, quotes, newlines)
