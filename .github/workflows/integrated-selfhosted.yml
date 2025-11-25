@@ -160,6 +160,8 @@ jobs:
   # ========== STAGE 3: BUILD ARTIFACTS (After Quality Checks) ==========
   build-artifacts:
     needs: test-backend
+    # Run builds even if earlier tests failed so we can collect artifacts/logs for monitoring
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     
     steps:
@@ -763,7 +765,8 @@ jobs:
           done
           
           # Build a small human-readable jobs block for the summary (keeps multi-line formatting)
-          JOBS_TEXT="### Workflow: ${{ github.workflow }} (run ${{ github.run_id }})\n\nJobs:\n"
+          # Use printf to include real newline characters so SUMMARY_TEXT will contain actual newlines
+          JOBS_TEXT=$(printf '### Workflow: %s (run %s)\n\nJobs:\n' "${{ github.workflow }}" "${{ github.run_id }}")
           for job_name in "test-backend" "test-frontend" "build-artifacts" "build-images" "deploy-to-k8s"; do
             case "$job_name" in
               "test-backend") STATUS="${{ needs.test-backend.result }}" ;;
@@ -779,7 +782,7 @@ jobs:
             else
               SSTAT=SKIPPED
             fi
-            JOBS_TEXT="$JOBS_TEXT- $job_name : $SSTAT\n"
+            JOBS_TEXT="$JOBS_TEXT$(printf '- %s : %s\n' "$job_name" "$SSTAT")"
           done
 
           # Tổng kết Jobs (machine-friendly)
@@ -852,10 +855,12 @@ jobs:
               # Làm sạch danh sách tên lỗi (thay xuống dòng bằng dấu phẩy)
               CLEAN_FAILED_NAMES=$(echo "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^ *//;s/ *$//;s/^,//;s/,,/,/g;s/,$//')
 
-              # SỬA: Tạo log message đầy đủ thông tin dạng key=value
-              # Format: type=test_summary service=user-service total=10 ... failed_cases="TestA,TestB"
-              MSG="type=test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS)) failed_cases=\"$CLEAN_FAILED_NAMES\""
-              
+              # SỬA: Tạo log message đầy đủ thông tin dạng key=value (keeps compact line for machine) + human-friendly multi-line block
+              # Compact (machine-friendly) line + decorated human readable block appended (so both programmatic parsing and readable display work)
+              COMPACT_LINE=$(printf 'type=test_summary service=%s total=%d passed=%d failed=%d failed_cases="%s"' "$SERVICE" "$SVC_TESTS" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$CLEAN_FAILED_NAMES")
+              HUMAN_BLOCK=$(printf '\n### Test Summary for %s\n\n✅ Passed: %d\n❌ Failed: %d\n⚠️ Errors: %d\n📊 Total: %d\n\nFailed cases: %s' "$SERVICE" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$SVC_ERRORS" "$SVC_TESTS" "$CLEAN_FAILED_NAMES")
+              MSG="$COMPACT_LINE$HUMAN_BLOCK"
+
               # Đóng gói JSON stream riêng cho service này (escape MSG for safe JSON)
               ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
               STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$ESC_MSG")
