@@ -748,20 +748,24 @@ jobs:
             if [ "$STATUS" = "success" ]; then
               PASSED_JOBS=$((PASSED_JOBS + 1))
               MSG="type=job_status job=$job_name status=pass"
-              LOGS="${LOGS%]]},[\"$TS\",\"$MSG\"]]"
+              ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+              LOGS="${LOGS%]]},[\"$TS\",\"$ESC_MSG\"]]"
             elif [ "$STATUS" = "failure" ]; then
               FAILED_JOBS=$((FAILED_JOBS + 1))
               MSG="type=job_status job=$job_name status=fail"
-              LOGS="${LOGS%]]},[\"$TS\",\"$MSG\"]]"
+              ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+              LOGS="${LOGS%]]},[\"$TS\",\"$ESC_MSG\"]]"
             elif [ "$STATUS" = "skipped" ]; then
               MSG="type=job_status job=$job_name status=skipped"
-              LOGS="${LOGS%]]},[\"$TS\",\"$MSG\"]]"
+              ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+              LOGS="${LOGS%]]},[\"$TS\",\"$ESC_MSG\"]]"
             fi
           done
           
           # Tổng kết Jobs
           MSG="type=job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS"
-          LOGS="${LOGS%]]},[\"$TS\",\"$MSG\"]]"
+          ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+          LOGS="${LOGS%]]},[\"$TS\",\"$ESC_MSG\"]]"
 
           # --- 2. TEST RESULTS SUMMARY ---
           TEST_STATUS="unknown"
@@ -817,8 +821,9 @@ jobs:
               # Format: type=test_summary service=user-service total=10 ... failed_cases="TestA,TestB"
               MSG="type=test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS)) failed_cases=\"$CLEAN_FAILED_NAMES\""
               
-              # Đóng gói JSON stream riêng cho service này
-              STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$MSG")
+              # Đóng gói JSON stream riêng cho service này (escape MSG for safe JSON)
+              ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+              STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$ESC_MSG")
               
               if [ -z "$EXTRA_STREAMS" ]; then
                 EXTRA_STREAMS="$STREAM_JSON"
