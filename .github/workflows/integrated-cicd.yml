@@ -23,34 +23,23 @@ jobs:
       fail-fast: false
       matrix:
         service: [user-service, order-service, restaurant-service, payment-service, api-gateway]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      test-backend:
-        runs-on: ubuntu-latest
-        strategy:
-          fail-fast: false
-          matrix:
-            service: [user-service, order-service, restaurant-service, payment-service, api-gateway]
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
 
-        steps:
-          - name: Checkout code
-            uses: actions/checkout@v4
-
-          - name: Set up JDK 21
-            uses: actions/setup-java@v4
-            with:
-              distribution: 'temurin'
-              java-version: '21'
-              cache: 'maven'
-
-          - name: Run tests for ${{ matrix.service }}
-            working-directory: ./${{ matrix.service }}
-            continue-on-error: true
-            id: run-tests
-            run: |
+      - name: Run tests for ${{ matrix.service }}
+        working-directory: ./${{ matrix.service }}
+        continue-on-error: true
+        id: run-tests
+        run: |
               echo "JOB_START: test-backend-${{ matrix.service }}"
               echo "STEP_START: Run tests for ${{ matrix.service }}"
 
@@ -95,83 +84,80 @@ jobs:
               FAILED_TESTS_CLEAN=$(echo "$FAILED_TESTS" | sed 's/^,//' | sed 's/,,/,/g')
               echo "failed_test_names=$FAILED_TESTS_CLEAN" >> $GITHUB_OUTPUT
 
-          - name: Push test logs to Loki
-            if: always()
-            env:
-              LOKI_URL: ${{ secrets.LOKI_URL }}
-              LOKI_USER: ${{ secrets.LOKI_USER }}
-              LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-            run: |
-              if [ -z "$LOKI_URL" ]; then
-                echo "⚠️ LOKI_URL not set, skipping log push"
-                exit 0
-              fi
+      - name: Push test logs to Loki
+        if: always()
+        env:
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USER: ${{ secrets.LOKI_USER }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          if [ -z "$LOKI_URL" ]; then
+            echo "⚠️ LOKI_URL not set, skipping log push"
+            exit 0
+          fi
 
-              TS=$(date +%s)000000000
-              SERVICE="${{ matrix.service }}"
-              TOTAL="${{ steps.run-tests.outputs.total_tests }}"
-              PASSED="${{ steps.run-tests.outputs.passed_tests }}"
-              FAILED="${{ steps.run-tests.outputs.failed_tests }}"
-              FAILED_NAMES="${{ steps.run-tests.outputs.failed_test_names }}"
-              TEST_STATUS="${{ steps.run-tests.outputs.test_status }}"
+          TS=$(date +%s)000000000
+          SERVICE="${{ matrix.service }}"
+          TOTAL="${{ steps.run-tests.outputs.total_tests }}"
+          PASSED="${{ steps.run-tests.outputs.passed_tests }}"
+          FAILED="${{ steps.run-tests.outputs.failed_tests }}"
+          FAILED_NAMES="${{ steps.run-tests.outputs.failed_test_names }}"
+          TEST_STATUS="${{ steps.run-tests.outputs.test_status }}"
 
-              MSG="type=test_result service=$SERVICE run_id=${{ github.run_id }} workflow=${{ github.workflow }} branch=${{ github.ref_name }} total=$TOTAL passed=$PASSED failed=$FAILED status=$TEST_STATUS failed_tests=\"$FAILED_NAMES\""
+          MSG="type=test_result service=$SERVICE run_id=${{ github.run_id }} workflow=${{ github.workflow }} branch=${{ github.ref_name }} total=$TOTAL passed=$PASSED failed=$FAILED status=$TEST_STATUS failed_tests=\"$FAILED_NAMES\""
 
-              PAYLOAD=$(cat <<EOF
+          PAYLOAD=$(cat <<EOF
+          {
+            "streams": [
               {
-                "streams": [
-                  {
-                    "stream": {
-                      "job": "ci",
-                      "service": "$SERVICE",
-                      "log_type": "test",
-                      "workflow": "${{ github.workflow }}",
-                      "run_id": "${{ github.run_id }}",
-                      "test_status": "$TEST_STATUS"
-                    },
-                    "values": [["$TS", "$MSG"]]
-                  }
-                ]
+                "stream": {
+                  "job": "ci",
+                  "service": "$SERVICE",
+                  "log_type": "test",
+                  "workflow": "${{ github.workflow }}",
+                  "run_id": "${{ github.run_id }}",
+                  "test_status": "$TEST_STATUS"
+                },
+                "values": [["$TS", "$MSG"]]
               }
-              EOF
-              )
+            ]
+          }
+          EOF
+          )
 
-              curl -s -X POST "$LOKI_URL" \
-                -u "$LOKI_USER:$LOKI_PASSWORD" \
-                -H "Content-Type: application/json" \
-                -d "$PAYLOAD" && echo "✅ Test logs pushed to Loki for $SERVICE" || echo "❌ Failed to push logs for $SERVICE"
+          curl -s -X POST "$LOKI_URL" \
+            -u "$LOKI_USER:$LOKI_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" && echo "✅ Test logs pushed to Loki for $SERVICE" || echo "❌ Failed to push logs for $SERVICE"
 
-          - name: Upload test results
-            if: always()
-            uses: actions/upload-artifact@v4
-            with:
-              name: test-results-${{ matrix.service }}
-              path: |
-                ${{ matrix.service }}/target/surefire-reports/
-                ${{ matrix.service }}/target/failsafe-reports/
-              retention-days: 7
-              LOKI_URL: ${{ secrets.LOKI_URL }}
-              LOKI_USER: ${{ secrets.LOKI_USER }}
-              LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-            run: |
-              if [ -z "$LOKI_URL" ]; then
-                echo "⚠️ LOKI_URL not set, skipping log push"
-                exit 0
-              fi
-              if [ -f loki-payloads/main_payload.json ]; then
-                curl -s -X POST "$LOKI_URL" \
-                  -u "$LOKI_USER:$LOKI_PASSWORD" \
-                  -H "Content-Type: application/json" \
-                  -d @loki-payloads/main_payload.json && echo "✅ Main logs pushed" || echo "❌ Failed main logs"
-              else
-                echo "No main payload file found"
-              fi
-              if [ -f loki-payloads/extra_payload.json ]; then
-                curl -s -X POST "$LOKI_URL" \
-                  -u "$LOKI_USER:$LOKI_PASSWORD" \
-                  -H "Content-Type: application/json" \
-                  -d @loki-payloads/extra_payload.json && echo "✅ Service logs pushed" || echo "❌ Failed service logs"
-              fi
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.service }}
+          path: |
+            ${{ matrix.service }}/target/surefire-reports/
+            ${{ matrix.service }}/target/failsafe-reports/
+          retention-days: 7
+        run: |
+          if [ -z "$LOKI_URL" ]; then
+            echo "⚠️ LOKI_URL not set, skipping log push"
+            exit 0
+          fi
+          if [ -f loki-payloads/main_payload.json ]; then
+            curl -s -X POST "$LOKI_URL" \
+              -u "$LOKI_USER:$LOKI_PASSWORD" \
+              -H "Content-Type: application/json" \
+              -d @loki-payloads/main_payload.json && echo "✅ Main logs pushed" || echo "❌ Failed main logs"
+          else
+            echo "No main payload file found"
+          fi
+          if [ -f loki-payloads/extra_payload.json ]; then
+            curl -s -X POST "$LOKI_URL" \
+              -u "$LOKI_USER:$LOKI_PASSWORD" \
+              -H "Content-Type: application/json" \
+              -d @loki-payloads/extra_payload.json && echo "✅ Service logs pushed" || echo "❌ Failed service logs"
+          fi
         
 
   # ========== STAGE 2: CODE QUALITY (After Tests) ==========
@@ -255,6 +241,19 @@ jobs:
                   if [ -n "$CURRENT_FAILS" ]; then FAILED_NAMES_LIST="$FAILED_NAMES_LIST $CURRENT_FAILS"; fi
                 fi
               done
+            
+                # --- Emit per-test-case streams (status=pass|fail) for this XML
+                for TNAME in $(grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null || true); do
+                  if grep -A 3 "name=\"$TNAME\"" "$XML" | grep -q '<failure\|<error'; then
+                    TSTATUS=fail
+                  else
+                    TSTATUS=pass
+                  fi
+                  MSG_TEST=$(printf 'type=test_case\nservice=%s\ntest="%s"\nstatus=%s' "$SERVICE" "$TNAME" "$TSTATUS")
+                  ESC_MSG_TEST=$(printf '%s' "$MSG_TEST" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+                  STREAM_TEST=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test","type":"test_case"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$ESC_MSG_TEST")
+                  if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$STREAM_TEST"; else EXTRA_STREAMS="$EXTRA_STREAMS,$STREAM_TEST"; fi
+                done
               SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
               TOTAL_TESTS_ALL=$((TOTAL_TESTS_ALL + SVC_TESTS))
               FAILED_TESTS_ALL=$((FAILED_TESTS_ALL + SVC_FAILURES + SVC_ERRORS))

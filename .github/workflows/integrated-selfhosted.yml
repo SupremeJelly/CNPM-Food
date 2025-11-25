@@ -810,6 +810,20 @@ jobs:
                    fi
                 fi
               done
+
+              # --- Emit per-test-case streams (status=pass|fail) for this XML
+              # Minimal: for each testcase record a small JSON stream labeled by service
+              for TNAME in $(grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null || true); do
+                if grep -A 3 "name=\"$TNAME\"" "$XML" | grep -q '<failure\|<error'; then
+                  TSTATUS=fail
+                else
+                  TSTATUS=pass
+                fi
+                MSG_TEST=$(printf 'type=test_case\nservice=%s\ntest="%s"\nstatus=%s' "$SERVICE" "$TNAME" "$TSTATUS")
+                ESC_MSG_TEST=$(printf '%s' "$MSG_TEST" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+                STREAM_TEST=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test","type":"test_case"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$ESC_MSG_TEST")
+                if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$STREAM_TEST"; else EXTRA_STREAMS="$EXTRA_STREAMS,$STREAM_TEST"; fi
+              done
               
               SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
               TOTAL_TESTS_ALL=$((TOTAL_TESTS_ALL + SVC_TESTS))
