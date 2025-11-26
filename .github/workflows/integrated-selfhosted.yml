@@ -1082,3 +1082,48 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           done
+
+          # --- Fetch job/step details from GitHub API for richer failure info ---
+          if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
+            GITHUB_API_URL="https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs"
+            TMP_JOBS_JSON=$(mktemp)
+            curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" "$GITHUB_API_URL" -o "$TMP_JOBS_JSON" || true
+
+            # summary line
+            TOTAL_JOBS=$(jq '.jobs | length' "$TMP_JOBS_JSON" 2>/dev/null || echo 0)
+            PASSED_JOBS=$(jq '[.jobs[] | select(.conclusion=="success")] | length' "$TMP_JOBS_JSON" 2>/dev/null || echo 0)
+            FAILED_JOBS=$(jq '[.jobs[] | select(.conclusion=="failure")] | length' "$TMP_JOBS_JSON" 2>/dev/null || echo 0)
+            JOB_SUM_LINE="type=workflow_jobs total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS"
+
+            # add summary as its own stream
+            ESC_SUM=$(printf '%s' "$JOB_SUM_LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+            SUM_STREAM=$(printf '{"stream":{"job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","log_type":"job_details","type":"workflow_summary"},"values":[["%s","%s"]]}' "$TS" "$ESC_SUM")
+            if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$SUM_STREAM"; else EXTRA_STREAMS="$EXTRA_STREAMS,$SUM_STREAM"; fi
+
+            # emit per-job single-line streams (with labels job_name + job_id)
+            jq -c '.jobs[]' "$TMP_JOBS_JSON" 2>/dev/null | while read -r j; do
+              JOB_NAME=$(echo "$j" | jq -r '.name // empty')
+              JOB_ID=$(echo "$j" | jq -r '.id // empty')
+              JOB_CONCL=$(echo "$j" | jq -r '.conclusion // .status // empty')
+              MSG_JOB=$(printf 'job=%s status=%s' "$JOB_NAME" "$JOB_CONCL")
+              ESC_MSG_JOB=$(printf '%s' "$MSG_JOB" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+              JOB_STREAM=$(printf '{"stream":{"job_name":"%s","job_id":"%s","job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","log_type":"job_details","type":"job_status"},"values":[["%s","%s"]]}' "$JOB_NAME" "$JOB_ID" "$TS" "$ESC_MSG_JOB")
+              if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$JOB_STREAM"; else EXTRA_STREAMS="$EXTRA_STREAMS,$JOB_STREAM"; fi
+
+              # if this job failed, emit failing steps as separate streams (labels include step_name)
+              if [ "$JOB_CONCL" = "failure" ]; then
+                echo "$j" | jq -c '.steps[]?' 2>/dev/null | while read -r s; do
+                  STEP_CONCL=$(echo "$s" | jq -r '.conclusion // empty')
+                  if [ -n "$STEP_CONCL" ] && [ "$STEP_CONCL" != "success" ]; then
+                    STEP_NAME=$(echo "$s" | jq -r '.name // "<step>"')
+                    MSG_STEP=$(printf 'failed_step job=%s step="%s" conclusion=%s' "$JOB_NAME" "$STEP_NAME" "$STEP_CONCL")
+                    ESC_MSG_STEP=$(printf '%s' "$MSG_STEP" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+                    STEP_STREAM=$(printf '{"stream":{"job_name":"%s","job_id":"%s","step_name":"%s","job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","log_type":"job_details","type":"failed_step"},"values":[["%s","%s"]]}' "$JOB_NAME" "$JOB_ID" "$STEP_NAME" "$TS" "$ESC_MSG_STEP")
+                    if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$STEP_STREAM"; else EXTRA_STREAMS="$EXTRA_STREAMS,$STEP_STREAM"; fi
+                  fi
+                done
+              fi
+            done
+
+            rm -f "$TMP_JOBS_JSON"
+          fi
