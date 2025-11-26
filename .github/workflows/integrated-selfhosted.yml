@@ -846,7 +846,7 @@ jobs:
           FAILED_TESTS_ALL=0
 
           if [ -d "test-results" ]; then
-            EXTRA_STREAMS=""
+            if [ -z "${EXTRA_STREAMS+x}" ]; then EXTRA_STREAMS=""; fi
             
             for dir in test-results/*/; do
               [ -d "$dir" ] || continue
