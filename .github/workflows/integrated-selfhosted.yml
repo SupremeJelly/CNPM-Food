@@ -819,17 +819,23 @@ jobs:
                 SVC_FAILURES=$((SVC_FAILURES + F))
                 SVC_ERRORS=$((SVC_ERRORS + E))
 
-                # SỬA: Lấy tên các test case bị fail gom vào biến string ngay tại đây
+                # SỬA: Lấy tên các test case bị fail gom vào biến string ngay tại đây (kèm message)
                 if [ "$F" -gt 0 ] || [ "$E" -gt 0 ]; then
-                   # Tìm tên testcase có thẻ failure hoặc error bên trong
+                   # Tìm tên testcase có thẻ failure hoặc error bên trong and capture message
                    CURRENT_FAILS=$(grep -oP '<testcase.*?name="\K[^"]+' "$XML" | while read TNAME; do
-                       if grep -A 3 "name=\"$TNAME\"" "$XML" | grep -q '<failure\|<error'; then
-                           echo "$TNAME"
+                       if grep -A 5 "name=\"$TNAME\"" "$XML" | grep -q '<failure\|<error'; then
+                           FAIL_MSG=$(grep -A 5 "name=\"$TNAME\"" "$XML" | grep -oP 'message="\K[^"]+' | head -1 || echo "")
+                           # Emit as: TestName: failure message (message may be empty)
+                           printf '%s: %s\n' "$TNAME" "$FAIL_MSG"
                        fi
                    done)
-                   # Nối vào danh sách chung, cách nhau bằng dấu phẩy
+                   # Append into the master list (preserve newlines between entries)
                    if [ -n "$CURRENT_FAILS" ]; then
-                      FAILED_NAMES_LIST="$FAILED_NAMES_LIST $CURRENT_FAILS"
+                      if [ -z "$FAILED_NAMES_LIST" ]; then
+                        FAILED_NAMES_LIST="$CURRENT_FAILS"
+                      else
+                        FAILED_NAMES_LIST="$FAILED_NAMES_LIST"$'\n'$CURRENT_FAILS
+                      fi
                    fi
                 fi
               done
@@ -852,18 +858,26 @@ jobs:
               TOTAL_TESTS_ALL=$((TOTAL_TESTS_ALL + SVC_TESTS))
               FAILED_TESTS_ALL=$((FAILED_TESTS_ALL + SVC_FAILURES + SVC_ERRORS))
               
-              # Làm sạch danh sách tên lỗi (thay xuống dòng bằng dấu phẩy)
-              CLEAN_FAILED_NAMES=$(echo "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^ *//;s/ *$//;s/^,//;s/,,/,/g;s/,$//')
+              # Build compact (CSV) and human-friendly failed-case lists
+              COMPACT_FAILED=$(printf '%s' "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^,//;s/,$//;s/,,/,/g;s/^ *//;s/ *$//')
+              HUMAN_FAILED_BLOCK=$(printf '%s' "$FAILED_NAMES_LIST" | sed '/^$/d' | sed 's/^/- /')
 
-              # SỬA: Tạo log message đầy đủ thông tin dạng key=value (keeps compact line for machine) + human-friendly multi-line block
-              # Compact (machine-friendly) line + decorated human readable block appended (so both programmatic parsing and readable display work)
-              COMPACT_LINE=$(printf 'type=test_summary service=%s total=%d passed=%d failed=%d failed_cases="%s"' "$SERVICE" "$SVC_TESTS" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$CLEAN_FAILED_NAMES")
-              HUMAN_BLOCK=$(printf '\n### Test Summary for %s\n\n✅ Passed: %d\n❌ Failed: %d\n⚠️ Errors: %d\n📊 Total: %d\n\nFailed cases: %s' "$SERVICE" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$SVC_ERRORS" "$SVC_TESTS" "$CLEAN_FAILED_NAMES")
+              # SỬA: Tạo log message đầy đủ thông tin dạng key=value (compact) + human-friendly multi-line block
+              COMPACT_LINE=$(printf 'type=test_summary service=%s total=%d passed=%d failed=%d failed_cases="%s"' "$SERVICE" "$SVC_TESTS" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$COMPACT_FAILED")
+              HUMAN_BLOCK=$(printf '\n### Test Summary for %s\n\n✅ Passed: %d\n❌ Failed: %d\n⚠️ Errors: %d\n📊 Total: %d\n\nFailed cases:\n%s' "$SERVICE" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$SVC_ERRORS" "$SVC_TESTS" "$HUMAN_FAILED_BLOCK")
               MSG="$COMPACT_LINE$HUMAN_BLOCK"
 
-              # Đóng gói JSON stream riêng cho service này (escape MSG for safe JSON)
-              ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
-              STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$ESC_MSG")
+              # Đóng gói JSON stream riêng cho service này (escape each line and emit as separate values so Loki stores separate log entries)
+              VALUES=""
+              while IFS= read -r LINE; do
+                ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+                if [ -z "$VALUES" ]; then
+                  VALUES="[\"$TS\",\"$ESC_LINE\"]"
+                else
+                  VALUES="$VALUES, [\"$TS\",\"$ESC_LINE\"]"
+                fi
+              done <<< "$MSG"
+              STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[%s]}' "$SERVICE" "$VALUES")
               
               if [ -z "$EXTRA_STREAMS" ]; then
                 EXTRA_STREAMS="$STREAM_JSON"
@@ -906,10 +920,20 @@ jobs:
                 SUMMARY_TEXT="$SUMMARY_TEXT\n✅ Total Passed: $TOTAL_PASSED\n❌ Total Failed: $FAILED_TESTS_ALL\n📊 Total Tests: $TOTAL_TESTS_ALL\n"
               fi
 
-              # Escape summary for safe JSON inclusion (escape backslashes, quotes, newlines)
+              # Escape and emit the summary as multiple Loki values (one line per entry)
               if [ -n "$SUMMARY_TEXT" ]; then
-                SUMMARY_ESCAPED=$(printf '%s' "$SUMMARY_TEXT" | sed ':a;N;$!ba;s/\\/\\\\/g;s/"/\\\"/g;s/\n/\\n/g')
-                SUMMARY_STREAM=$(printf '{"stream":{"job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","log_type":"test_summary"},"values":[["%s","%s"]]}' "$TS" "$SUMMARY_ESCAPED")
+                SUMMARY_VALUES=""
+                # Iterate over each line in SUMMARY_TEXT and create a separate value entry
+                while IFS= read -r LINE; do
+                  ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+                  if [ -z "$SUMMARY_VALUES" ]; then
+                    SUMMARY_VALUES="[\"$TS\",\"$ESC_LINE\"]"
+                  else
+                    SUMMARY_VALUES="$SUMMARY_VALUES, [\"$TS\",\"$ESC_LINE\"]"
+                  fi
+                done <<< "$SUMMARY_TEXT"
+
+                SUMMARY_STREAM=$(printf '{"stream":{"job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","log_type":"test_summary"},"values":[%s]}' "$SUMMARY_VALUES")
 
                 if [ -z "$EXTRA_STREAMS" ]; then
                   EXTRA_STREAMS="$SUMMARY_STREAM"
