@@ -264,13 +264,6 @@ jobs:
       - name: Download backend artifacts
         uses: actions/download-artifact@v4
         with:
-          name: backend-jars
-          path: ./
-        continue-on-error: true
-
-      - name: Download backend artifacts (fallback)
-        uses: actions/download-artifact@v4
-        with:
           name: backend-jars-and-logs
           path: ./
         continue-on-error: true
@@ -1017,18 +1010,24 @@ jobs:
           # Gửi Payload chính (Job logs)
           PAYLOAD="{\"streams\":[{\"stream\":{\"job\":\"ci\",\"workflow\":\"${{ github.workflow }}\",\"run_id\":\"${{ github.run_id }}\",\"test_status\":\"$TEST_STATUS\"},\"values\":$LOGS}]}"
           
+          TMP_MAIN_PAYLOAD=$(mktemp)
+          printf '%s' "$PAYLOAD" > "$TMP_MAIN_PAYLOAD"
           curl -s -X POST "$LOKI_URL" \
             -u "$LOKI_USER:$LOKI_PASSWORD" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD" && echo "✅ Main logs pushed" || echo "❌ Failed main logs"
+            --data-binary @"$TMP_MAIN_PAYLOAD" && echo "✅ Main logs pushed" || echo "❌ Failed main logs"
+          rm -f "$TMP_MAIN_PAYLOAD"
 
           # Gửi Payload phụ (Test summary từng service)
           if [ -n "$EXTRA_STREAMS" ]; then
             EXTRA_PAYLOAD="{\"streams\":[${EXTRA_STREAMS}] }"
+            TMP_EXTRA_PAYLOAD=$(mktemp)
+            printf '%s' "$EXTRA_PAYLOAD" > "$TMP_EXTRA_PAYLOAD"
             curl -s -X POST "$LOKI_URL" \
               -u "$LOKI_USER:$LOKI_PASSWORD" \
               -H "Content-Type: application/json" \
-              -d "$EXTRA_PAYLOAD" && echo "✅ Service logs pushed" || echo "❌ Failed service logs"
+              --data-binary @"$TMP_EXTRA_PAYLOAD" && echo "✅ Service logs pushed" || echo "❌ Failed service logs"
+            rm -f "$TMP_EXTRA_PAYLOAD"
           fi
 
   # ========== STAGE 7: TEST SUMMARY (Always runs) ==========
