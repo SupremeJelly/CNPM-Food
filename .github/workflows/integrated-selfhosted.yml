@@ -38,7 +38,6 @@ jobs:
       - name: Run tests for ${{ matrix.service }}
         working-directory: ./${{ matrix.service }}
         run: |
-          set -o pipefail
           echo "JOB_START: test-backend-${{ matrix.service }}"
           echo "STEP_START: Run tests for ${{ matrix.service }}"
           
@@ -51,6 +50,34 @@ jobs:
             TEST_EXIT=1
           fi
           
+          # --- Include per-service test console logs from test-results/*/test-output.log (if any)
+          if [ -d "test-results" ]; then
+            for tlog in test-results/*/test-output.log; do
+              [ -f "$tlog" ] || continue
+              # derive service name from directory: test-results/test-results-<service>/test-output.log
+              DIRNAME=$(dirname "$tlog")
+              RAW_NAME=$(basename "$DIRNAME")
+              SERVICE=${RAW_NAME#test-results-}
+              T_VALUES=""
+              while IFS= read -r LINE; do
+                ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+                if [ -z "$T_VALUES" ]; then
+                  T_VALUES="[\"$TS\",\"$ESC_LINE\"]"
+                else
+                  T_VALUES="$T_VALUES, [\"$TS\",\"$ESC_LINE\"]"
+                fi
+              done < "$tlog"
+              if [ -n "$T_VALUES" ]; then
+                T_STREAM=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test","type":"test_output"},"values":[%s]}' "$SERVICE" "$T_VALUES")
+                if [ -z "$EXTRA_STREAMS" ]; then
+                  EXTRA_STREAMS="$T_STREAM"
+                else
+                  EXTRA_STREAMS="$EXTRA_STREAMS,$T_STREAM"
+                fi
+              fi
+            done
+          fi
+
           # Parse test results from surefire/failsafe reports
           TOTAL=0
           FAILURES=0
@@ -94,9 +121,7 @@ jobs:
           path: |
             ${{ matrix.service }}/target/surefire-reports/
             ${{ matrix.service }}/target/failsafe-reports/
-            ${{ matrix.service }}/test-output.log
           retention-days: 7
-          if-no-files-found: ignore
 
   test-frontend:
     runs-on: ubuntu-latest
@@ -181,38 +206,30 @@ jobs:
       - name: Build all backend services (skip tests - already ran)
         run: |
           echo "JOB_START: build-artifacts"
-          mkdir -p artifacts
-          # initialize flag for failures (persist to subsequent steps)
-          echo "BUILD_FAILED=0" >> $GITHUB_ENV
-
           for service in user-service order-service restaurant-service payment-service api-gateway; do
             echo "STEP_START: Build $service"
             cd $service
-            # capture console output per-service so we can upload even on failure
-            if mvn clean package -DskipTests -B 2>&1 | tee ../artifacts/${service}-build.log; then
+            if mvn clean package -DskipTests -B; then
               echo "STEP_STATUS: PASS"
             else
               echo "STEP_STATUS: FAIL"
-              # mark that at least one build failed (persist across steps)
-              echo "BUILD_FAILED=1" >> $GITHUB_ENV
+              cd ..
+              exit 1
             fi
             cd ..
           done
 
-      - name: Upload backend JARs and build logs
-        if: always()
+      - name: Upload backend JARs
         uses: actions/upload-artifact@v4
         with:
-          name: backend-jars-and-logs
+          name: backend-jars
           path: |
             user-service/target/*.jar
             order-service/target/*.jar
             restaurant-service/target/*.jar
             payment-service/target/*.jar
             api-gateway/target/*.jar
-            artifacts/
           retention-days: 30
-          if-no-files-found: ignore
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -228,24 +245,11 @@ jobs:
           npm run build -- --configuration production
 
       - name: Upload frontend dist
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist/
           retention-days: 30
-          if-no-files-found: ignore
-
-      - name: Fail if any backend build failed
-        if: always()
-        run: |
-          # BUILD_FAILED is set in previous step(s) via $GITHUB_ENV
-          if [ "${BUILD_FAILED:-0}" = "1" ]; then
-            echo "One or more backend builds failed. See artifacts/*-build.log for details."
-            exit 1
-          else
-            echo "All backend builds passed."
-          fi
 
   # ========== STAGE 4: BUILD & PUSH DOCKER IMAGES (Only on main/src branch) ==========
   build-images:
@@ -264,9 +268,8 @@ jobs:
       - name: Download backend artifacts
         uses: actions/download-artifact@v4
         with:
-          name: backend-jars-and-logs
+          name: backend-jars
           path: ./
-        continue-on-error: true
 
       - name: Download frontend artifacts
         uses: actions/download-artifact@v4
@@ -738,13 +741,6 @@ jobs:
         with:
           pattern: test-results-*
           path: test-results/
-        continue-on-error: true
-
-      - name: Download backend build logs (if available)
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-jars-and-logs
-          path: ./
         continue-on-error: true
 
       - name: Push logs to Loki
