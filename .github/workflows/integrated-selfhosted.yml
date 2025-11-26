@@ -38,6 +38,7 @@ jobs:
       - name: Run tests for ${{ matrix.service }}
         working-directory: ./${{ matrix.service }}
         run: |
+          set -o pipefail
           echo "JOB_START: test-backend-${{ matrix.service }}"
           echo "STEP_START: Run tests for ${{ matrix.service }}"
           
@@ -93,7 +94,9 @@ jobs:
           path: |
             ${{ matrix.service }}/target/surefire-reports/
             ${{ matrix.service }}/target/failsafe-reports/
+            ${{ matrix.service }}/test-output.log
           retention-days: 7
+          if-no-files-found: ignore
 
   test-frontend:
     runs-on: ubuntu-latest
@@ -209,6 +212,7 @@ jobs:
             api-gateway/target/*.jar
             artifacts/
           retention-days: 30
+          if-no-files-found: ignore
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -230,6 +234,7 @@ jobs:
           name: frontend-dist
           path: frontend/dist/
           retention-days: 30
+          if-no-files-found: ignore
 
       - name: Fail if any backend build failed
         if: always()
@@ -261,6 +266,14 @@ jobs:
         with:
           name: backend-jars
           path: ./
+        continue-on-error: true
+
+      - name: Download backend artifacts (fallback)
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jars-and-logs
+          path: ./
+        continue-on-error: true
 
       - name: Download frontend artifacts
         uses: actions/download-artifact@v4
@@ -734,6 +747,13 @@ jobs:
           path: test-results/
         continue-on-error: true
 
+      - name: Download backend build logs (if available)
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jars-and-logs
+          path: ./
+        continue-on-error: true
+
       - name: Push logs to Loki
         env:
           LOKI_URL: ${{ secrets.LOKI_URL }}
@@ -962,6 +982,32 @@ jobs:
                   EXTRA_STREAMS="$EXTRA_STREAMS,$SUMMARY_STREAM"
                 fi
               fi
+
+          # --- Include backend build logs uploaded in artifacts/ (if any)
+          if [ -d "artifacts" ]; then
+            for f in artifacts/*-build.log; do
+              [ -f "$f" ] || continue
+              BASENAME=$(basename "$f")
+              SERVICE_NAME=${BASENAME%-build.log}
+              BUILD_VALUES=""
+              while IFS= read -r LINE; do
+                ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+                if [ -z "$BUILD_VALUES" ]; then
+                  BUILD_VALUES="[\"$TS\",\"$ESC_LINE\"]"
+                else
+                  BUILD_VALUES="$BUILD_VALUES, [\"$TS\",\"$ESC_LINE\"]"
+                fi
+              done < "$f"
+              if [ -n "$BUILD_VALUES" ]; then
+                BUILD_STREAM=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"build"},"values":[%s]}' "$SERVICE_NAME" "$BUILD_VALUES")
+                if [ -z "$EXTRA_STREAMS" ]; then
+                  EXTRA_STREAMS="$BUILD_STREAM"
+                else
+                  EXTRA_STREAMS="$EXTRA_STREAMS,$BUILD_STREAM"
+                fi
+              fi
+            done
+          fi
 
           # Xác định trạng thái chung
           if [ "$FAILED_TESTS_ALL" -gt 0 ]; then TEST_STATUS="failed"; elif [ "$TOTAL_TESTS_ALL" -gt 0 ]; then TEST_STATUS="passed"; fi
