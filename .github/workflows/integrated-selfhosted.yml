@@ -782,7 +782,7 @@ jobs:
             else
               SSTAT=SKIPPED
             fi
-            JOBS_TEXT="$JOBS_TEXT$(printf '- %s : %s\n' "$job_name" "$SSTAT")"
+            JOBS_TEXT="$JOBS_TEXT$(printf '%s\n' "- $job_name : $SSTAT")"
           done
 
           # Tổng kết Jobs (machine-friendly)
@@ -864,7 +864,7 @@ jobs:
 
               # SỬA: Tạo log message đầy đủ thông tin dạng key=value (compact) + human-friendly multi-line block
               COMPACT_LINE=$(printf 'type=test_summary service=%s total=%d passed=%d failed=%d failed_cases="%s"' "$SERVICE" "$SVC_TESTS" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$COMPACT_FAILED")
-              HUMAN_BLOCK=$(printf '\n### Test Summary for %s\n\n✅ Passed: %d\n❌ Failed: %d\n⚠️ Errors: %d\n📊 Total: %d\n\nFailed cases:\n%s' "$SERVICE" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$SVC_ERRORS" "$SVC_TESTS" "$HUMAN_FAILED_BLOCK")
+              HUMAN_BLOCK=$(printf '%s\n\n%s\n%s\n%s\n%s\n\nFailed cases:\n%s' "### Test Summary for $SERVICE" "✅ Passed: $SVC_PASSED" "❌ Failed: $((SVC_FAILURES + SVC_ERRORS))" "⚠️ Errors: $SVC_ERRORS" "📊 Total: $SVC_TESTS" "$HUMAN_FAILED_BLOCK")
               MSG="$COMPACT_LINE$HUMAN_BLOCK"
 
               # Đóng gói JSON stream riêng cho service này (escape each line and emit as separate values so Loki stores separate log entries)
