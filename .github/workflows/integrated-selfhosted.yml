@@ -121,6 +121,7 @@ jobs:
           path: |
             ${{ matrix.service }}/target/surefire-reports/
             ${{ matrix.service }}/target/failsafe-reports/
+            ${{ matrix.service }}/test-output.log
           retention-days: 7
 
   test-frontend:
@@ -1082,3 +1083,23 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           done
+
+          # Emit JOBS_TEXT as its own Loki stream (one line per job) so panels show jobs on separate lines
+          if [ -n "$JOBS_TEXT" ]; then
+            JOBS_VALUES=""
+            while IFS= read -r LINE; do
+              ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+              if [ -z "$JOBS_VALUES" ]; then
+                JOBS_VALUES="[\"$TS\",\"$ESC_LINE\"]"
+              else
+                JOBS_VALUES="$JOBS_VALUES, [\"$TS\",\"$ESC_LINE\"]"
+              fi
+            done <<< "$(printf '%b' "$JOBS_TEXT")"
+
+            JOBS_STREAM=$(printf '{"stream":{"job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","log_type":"job_details","type":"jobs_list"},"values":[%s]}' "$JOBS_VALUES")
+            if [ -z "$EXTRA_STREAMS" ]; then
+              EXTRA_STREAMS="$JOBS_STREAM"
+            else
+              EXTRA_STREAMS="$EXTRA_STREAMS,$JOBS_STREAM"
+            fi
+          fi
