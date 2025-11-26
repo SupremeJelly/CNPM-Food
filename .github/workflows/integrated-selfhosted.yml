@@ -178,29 +178,36 @@ jobs:
       - name: Build all backend services (skip tests - already ran)
         run: |
           echo "JOB_START: build-artifacts"
+          mkdir -p artifacts
+          # initialize flag for failures (persist to subsequent steps)
+          echo "BUILD_FAILED=0" >> $GITHUB_ENV
+
           for service in user-service order-service restaurant-service payment-service api-gateway; do
             echo "STEP_START: Build $service"
             cd $service
-            if mvn clean package -DskipTests -B; then
+            # capture console output per-service so we can upload even on failure
+            if mvn clean package -DskipTests -B 2>&1 | tee ../artifacts/${service}-build.log; then
               echo "STEP_STATUS: PASS"
             else
               echo "STEP_STATUS: FAIL"
-              cd ..
-              exit 1
+              # mark that at least one build failed (persist across steps)
+              echo "BUILD_FAILED=1" >> $GITHUB_ENV
             fi
             cd ..
           done
 
-      - name: Upload backend JARs
+      - name: Upload backend JARs and build logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-jars
+          name: backend-jars-and-logs
           path: |
             user-service/target/*.jar
             order-service/target/*.jar
             restaurant-service/target/*.jar
             payment-service/target/*.jar
             api-gateway/target/*.jar
+            artifacts/
           retention-days: 30
 
       - name: Set up Node.js
@@ -217,11 +224,23 @@ jobs:
           npm run build -- --configuration production
 
       - name: Upload frontend dist
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist/
           retention-days: 30
+
+      - name: Fail if any backend build failed
+        if: always()
+        run: |
+          # BUILD_FAILED is set in previous step(s) via $GITHUB_ENV
+          if [ "${BUILD_FAILED:-0}" = "1" ]; then
+            echo "One or more backend builds failed. See artifacts/*-build.log for details."
+            exit 1
+          else
+            echo "All backend builds passed."
+          fi
 
   # ========== STAGE 4: BUILD & PUSH DOCKER IMAGES (Only on main/src branch) ==========
   build-images:
@@ -848,9 +867,10 @@ jobs:
                 else
                   TSTATUS=pass
                 fi
-                MSG_TEST=$(printf 'type=test_case\nservice=%s\ntest="%s"\nstatus=%s' "$SERVICE" "$TNAME" "$TSTATUS")
+                # Make per-test entries compact (single-line) and include status as a label for easier querying
+                MSG_TEST=$(printf 'type=test_case service=%s test="%s" status=%s' "$SERVICE" "$TNAME" "$TSTATUS")
                 ESC_MSG_TEST=$(printf '%s' "$MSG_TEST" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
-                STREAM_TEST=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test","type":"test_case"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$ESC_MSG_TEST")
+                STREAM_TEST=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test","type":"test_case","status":"%s"},"values":[["%s","%s"]]}' "$SERVICE" "$TSTATUS" "$TS" "$ESC_MSG_TEST")
                 if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$STREAM_TEST"; else EXTRA_STREAMS="$EXTRA_STREAMS,$STREAM_TEST"; fi
               done
               
@@ -865,7 +885,8 @@ jobs:
               # SỬA: Tạo log message đầy đủ thông tin dạng key=value (compact) + human-friendly multi-line block
               COMPACT_LINE=$(printf 'type=test_summary service=%s total=%d passed=%d failed=%d failed_cases="%s"' "$SERVICE" "$SVC_TESTS" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$COMPACT_FAILED")
               HUMAN_BLOCK=$(printf '%s\n\n%s\n%s\n%s\n%s\n\nFailed cases:\n%s' "### Test Summary for $SERVICE" "✅ Passed: $SVC_PASSED" "❌ Failed: $((SVC_FAILURES + SVC_ERRORS))" "⚠️ Errors: $SVC_ERRORS" "📊 Total: $SVC_TESTS" "$HUMAN_FAILED_BLOCK")
-              MSG="$COMPACT_LINE$HUMAN_BLOCK"
+              # Ensure there's a newline separator between compact line and human block
+              MSG="$COMPACT_LINE"$'\n'$HUMAN_BLOCK
 
               # Đóng gói JSON stream riêng cho service này (escape each line and emit as separate values so Loki stores separate log entries)
               VALUES=""
