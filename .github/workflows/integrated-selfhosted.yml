@@ -818,6 +818,28 @@ jobs:
           ESC_MSG=$(printf '%s' "$MSG" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
           LOGS="${LOGS%]]},[\"$TS\",\"$ESC_MSG\"]]"
 
+          # Emit JOBS_TEXT as its own Loki stream (one line per job) so panels show jobs on separate lines
+          if [ -n "$JOBS_TEXT" ]; then
+            # ensure EXTRA_STREAMS is defined
+            if [ -z "${EXTRA_STREAMS+x}" ]; then EXTRA_STREAMS=""; fi
+            JOBS_VALUES=""
+            while IFS= read -r LINE; do
+              ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+              if [ -z "$JOBS_VALUES" ]; then
+                JOBS_VALUES="[\"$TS\",\"$ESC_LINE\"]"
+              else
+                JOBS_VALUES="$JOBS_VALUES, [\"$TS\",\"$ESC_LINE\"]"
+              fi
+            done <<< "$(printf '%b' "$JOBS_TEXT")"
+
+            JOBS_STREAM=$(printf '{"stream":{"job":"ci","workflow":"%s","run_id":"%s","log_type":"job_details","type":"jobs_list"},"values":[%s]}' "${{ github.workflow }}" "${{ github.run_id }}" "$JOBS_VALUES")
+            if [ -z "$EXTRA_STREAMS" ]; then
+              EXTRA_STREAMS="$JOBS_STREAM"
+            else
+              EXTRA_STREAMS="$EXTRA_STREAMS,$JOBS_STREAM"
+            fi
+          fi
+
           # --- 2. TEST RESULTS SUMMARY ---
           TEST_STATUS="unknown"
           TOTAL_TESTS_ALL=0
