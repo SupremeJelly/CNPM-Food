@@ -53,11 +53,15 @@ FROM nginx:alpine
 COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
 
 # Tạo file cấu hình Nginx trực tiếp tại đây để tránh lỗi MIME type
+# Include mime types and ensure static assets return 404 (not index.html) when missing
 RUN echo 'server { \
     listen 80; \
     server_name localhost; \
     root /usr/share/nginx/html; \
     index index.html; \
+    include /etc/nginx/mime.types; \
+    default_type application/octet-stream; \
+    charset utf-8; \
     # Nén dữ liệu để tải nhanh hơn
     gzip on; \
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript; \
@@ -66,8 +70,9 @@ RUN echo 'server { \
         try_files $uri $uri/ /index.html; \
     } \
     \
-    # Cache cho file tĩnh (JS/CSS)
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ { \
+    # Cache cho file tĩnh (JS/CSS). If the file is missing, return 404 instead of falling back to index.html
+    location ~* \.(js|mjs|css|png|jpg|jpeg|gif|ico|svg)$ { \
+        try_files $uri =404; \
         expires 1y; \
         add_header Cache-Control "public, immutable"; \
     } \
