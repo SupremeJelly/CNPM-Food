@@ -434,8 +434,8 @@ jobs:
     needs: build-images
     runs-on: self-hosted
     environment: staging
-    # Temporarily disabled - set `if: false` to skip Kubernetes deploy from CI
-    if: false
+    # Enable deploy only on push to main or src branches
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
     permissions:
       contents: read
 
