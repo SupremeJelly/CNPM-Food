@@ -12,8 +12,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: cnpm-food.example.com  # Change to your domain
-    http:
+  - http:
       paths:
       - path: /api(/|$)(.*)
         pathType: ImplementationSpecific

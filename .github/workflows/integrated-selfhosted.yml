@@ -922,8 +922,10 @@ jobs:
               FAILED_TESTS_ALL=$((FAILED_TESTS_ALL + SVC_FAILURES + SVC_ERRORS))
               
               # Build compact (CSV) and human-friendly failed-case lists
-              COMPACT_FAILED=$(printf '%s' "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^,//;s/,$//;s/,,/,/g;s/^ *//;s/ *$//')
-              HUMAN_FAILED_BLOCK=$(printf '%s' "$FAILED_NAMES_LIST" | sed '/^$/d' | sed 's/^/- /')
+              # Create a compact single-line list for labels (replace newlines with semicolons to avoid HTML-encoding of literal newlines)
+              COMPACT_FAILED=$(printf '%s' "$FAILED_NAMES_LIST" | tr '\r' '\n' | tr '\n' ';' | sed 's/;;*/;/g; s/^;//; s/;$//; s/^ *//; s/ *$//')
+              # Human friendly block: preserve newlines but normalize CRLF and ensure each item starts with '- '
+              HUMAN_FAILED_BLOCK=$(printf '%s' "$FAILED_NAMES_LIST" | tr -d '\r' | sed '/^$/d' | sed 's/^/- /')
 
               # SỬA: Tạo log message đầy đủ thông tin dạng key=value (compact) + human-friendly multi-line block
               COMPACT_LINE=$(printf 'type=test_summary service=%s total=%d passed=%d failed=%d failed_cases="%s"' "$SERVICE" "$SVC_TESTS" "$SVC_PASSED" $((SVC_FAILURES + SVC_ERRORS)) "$COMPACT_FAILED")
@@ -933,14 +935,16 @@ jobs:
 
               # Đóng gói JSON stream riêng cho service này (escape each line and emit as separate values so Loki stores separate log entries)
               VALUES=""
-              while IFS= read -r LINE; do
+              # Escape each logical line separately and emit as its own Loki value (strip CR to avoid CRLF join)
+              VALUES=""
+              printf '%s' "$MSG" | tr -d '\r' | while IFS= read -r LINE || [ -n "$LINE" ]; do
                 ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
                 if [ -z "$VALUES" ]; then
                   VALUES="[\"$TS\",\"$ESC_LINE\"]"
                 else
                   VALUES="$VALUES, [\"$TS\",\"$ESC_LINE\"]"
                 fi
-              done <<< "$(printf '%b' "$MSG")"
+              done
               STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[%s]}' "$SERVICE" "$VALUES")
               
               if [ -z "$EXTRA_STREAMS" ]; then
@@ -987,15 +991,16 @@ jobs:
               # Escape and emit the summary as multiple Loki values (one line per entry)
               if [ -n "$SUMMARY_TEXT" ]; then
                 SUMMARY_VALUES=""
-                # Iterate over each line in SUMMARY_TEXT and create a separate value entry
-                while IFS= read -r LINE; do
-                  ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
-                  if [ -z "$SUMMARY_VALUES" ]; then
-                    SUMMARY_VALUES="[\"$TS\",\"$ESC_LINE\"]"
-                  else
-                    SUMMARY_VALUES="$SUMMARY_VALUES, [\"$TS\",\"$ESC_LINE\"]"
-                  fi
-                done <<< "$(printf '%b' "$SUMMARY_TEXT")"
+                    # Iterate over each line in SUMMARY_TEXT, normalize CRLF and create a separate value entry
+                    SUMMARY_VALUES=""
+                    printf '%s' "$SUMMARY_TEXT" | tr -d '\r' | while IFS= read -r LINE || [ -n "$LINE" ]; do
+                      ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
+                      if [ -z "$SUMMARY_VALUES" ]; then
+                        SUMMARY_VALUES="[\"$TS\",\"$ESC_LINE\"]"
+                      else
+                        SUMMARY_VALUES="$SUMMARY_VALUES, [\"$TS\",\"$ESC_LINE\"]"
+                      fi
+                    done
 
                 SUMMARY_STREAM=$(printf '{"stream":{"job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","log_type":"test_summary"},"values":[%s]}' "$SUMMARY_VALUES")
 
