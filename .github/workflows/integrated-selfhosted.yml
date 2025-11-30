@@ -937,14 +937,15 @@ jobs:
               VALUES=""
               # Escape each logical line separately and emit as its own Loki value (strip CR to avoid CRLF join)
               VALUES=""
-              printf '%s' "$MSG" | tr -d '\r' | while IFS= read -r LINE || [ -n "$LINE" ]; do
+              # Use here-string to avoid subshell so VALUES remains visible after the loop
+              while IFS= read -r LINE || [ -n "$LINE" ]; do
                 ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
                 if [ -z "$VALUES" ]; then
                   VALUES="[\"$TS\",\"$ESC_LINE\"]"
                 else
                   VALUES="$VALUES, [\"$TS\",\"$ESC_LINE\"]"
                 fi
-              done
+              done <<< "$(printf '%s' "$MSG" | tr -d '\r')"
               STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[%s]}' "$SERVICE" "$VALUES")
               
               if [ -z "$EXTRA_STREAMS" ]; then
@@ -993,14 +994,15 @@ jobs:
                 SUMMARY_VALUES=""
                     # Iterate over each line in SUMMARY_TEXT, normalize CRLF and create a separate value entry
                     SUMMARY_VALUES=""
-                    printf '%s' "$SUMMARY_TEXT" | tr -d '\r' | while IFS= read -r LINE || [ -n "$LINE" ]; do
+                    # Use here-string to avoid subshell so SUMMARY_VALUES persists
+                    while IFS= read -r LINE || [ -n "$LINE" ]; do
                       ESC_LINE=$(printf '%s' "$LINE" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
                       if [ -z "$SUMMARY_VALUES" ]; then
                         SUMMARY_VALUES="[\"$TS\",\"$ESC_LINE\"]"
                       else
                         SUMMARY_VALUES="$SUMMARY_VALUES, [\"$TS\",\"$ESC_LINE\"]"
                       fi
-                    done
+                    done <<< "$(printf '%s' "$SUMMARY_TEXT" | tr -d '\r')"
 
                 SUMMARY_STREAM=$(printf '{"stream":{"job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","log_type":"test_summary"},"values":[%s]}' "$SUMMARY_VALUES")
 

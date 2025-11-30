@@ -6,16 +6,14 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Optional: for HTTPS
-    # Use regex to strip the /api prefix when forwarding to the api-gateway
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+    # Note: rewrite removed to preserve original request paths for backend
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
-      - path: /api(/|$)(.*)
-        pathType: ImplementationSpecific
+      - path: /api
+        pathType: Prefix
         backend:
           service:
             name: api-gateway
