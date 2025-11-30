@@ -297,6 +297,18 @@ jobs:
           
           echo "Changed files:"
           echo "$CHANGED"
+
+          # If the ingress manifest changed explicitly, force rebuild of frontend and api-gateway
+          # Minimal behavior: treat an ingress change as a code-change signal for these images
+          if echo "$CHANGED" | grep -qE '(^|\s)k8s/ingress.yaml(\s|$)'; then
+            echo "Detected k8s/ingress.yaml changed -> forcing rebuild for frontend and gateway"
+            echo "frontend=true" >> $GITHUB_OUTPUT
+            echo "gateway=true" >> $GITHUB_OUTPUT
+            echo "workflow_only=false" >> $GITHUB_OUTPUT
+            echo "k8s=true" >> $GITHUB_OUTPUT
+            echo "ingress_changed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
           
           # Check if only workflow/k8s files changed (no code changes)
           WORKFLOW_ONLY="false"
