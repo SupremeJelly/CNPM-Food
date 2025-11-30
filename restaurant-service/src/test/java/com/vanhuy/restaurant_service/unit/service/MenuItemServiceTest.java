@@ -102,6 +102,42 @@ class MenuItemServiceTest {
         verify(menuItemRepository, times(1)).findByRestaurant(restaurant);
     }
 
+    /*
+     * Temporarily disabled for CI workflow failure injection testing.
+     * The original test above is commented out by wrapping a copy here; use the
+     * _Fail variant added below to intentionally fail the build when needed.
+     */
+    /*
+    @Test
+    void testGetMenuItemsByRestaurantIdSuccess() {
+        // Given
+        MenuItem menuItem2 = MenuItem.builder()
+                .itemId(2)
+                .name("Pho Ga")
+                .price(new BigDecimal("45000"))
+                .stock(80)
+                .imageUrl("pho-ga.jpg")
+                .restaurant(restaurant)
+                .build();
+
+        List<MenuItem> menuItems = Arrays.asList(menuItem, menuItem2);
+        when(menuItemRepository.findByRestaurant(restaurant)).thenReturn(menuItems);
+
+        // When
+        List<OrderItemDTO> result = menuItemService.getMenuItemsByRestaurantId(restaurant);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getName()).isEqualTo("Pho Bo");
+        assertThat(result.get(0).getPrice()).isEqualByComparingTo(new BigDecimal("50000"));
+        assertThat(result.get(1).getName()).isEqualTo("Pho Ga");
+        assertThat(result.get(1).getPrice()).isEqualByComparingTo(new BigDecimal("45000"));
+
+        verify(menuItemRepository, times(1)).findByRestaurant(restaurant);
+    }
+    */
+
     @Test
     void testGetMenuItemsByRestaurantIdEmpty() {
         // Given
@@ -159,6 +195,78 @@ class MenuItemServiceTest {
         assertThat(result.getName()).isEqualTo("Pho Bo");
         assertThat(result.getPrice()).isEqualByComparingTo(new BigDecimal("50000"));
         assertThat(result.getStock()).isEqualTo(100);
+
+        verify(restaurantRepository, times(1)).findById(1);
+        verify(menuItemRepository, times(1)).save(any(MenuItem.class));
+    }
+
+    /*
+     * Temporarily disabled for CI workflow failure injection testing.
+     * See the _Fail variant added below which intentionally asserts wrong values.
+     */
+    /*
+    @Test
+    void testCreateMenuItemSuccess() {
+        // Given
+        when(restaurantRepository.findById(1)).thenReturn(Optional.of(restaurant));
+        when(menuItemRepository.save(any(MenuItem.class))).thenReturn(menuItem);
+
+        // When
+        OrderItemDTO result = menuItemService.createMenuItem(orderItemDTO, 1);
+
+        // Then
+        assertThat(result).isNotNull();
+        // Comment out problematic assertion temporarily to check if toDTO returns null
+        // assertThat(result.getMenuItemId()).isEqualTo(1);
+        assertThat(result.getName()).isEqualTo("Pho Bo");
+        assertThat(result.getPrice()).isEqualByComparingTo(new BigDecimal("50000"));
+        assertThat(result.getStock()).isEqualTo(100);
+
+        verify(restaurantRepository, times(1)).findById(1);
+        verify(menuItemRepository, times(1)).save(any(MenuItem.class));
+    }
+    */
+
+    // ---------- Intentionally failing copies for workflow testing ----------
+    @Test
+    void testGetMenuItemsByRestaurantIdSuccess_Fail() {
+        // Given
+        MenuItem menuItem2 = MenuItem.builder()
+                .itemId(2)
+                .name("Pho Ga")
+                .price(new BigDecimal("45000"))
+                .stock(80)
+                .imageUrl("pho-ga.jpg")
+                .restaurant(restaurant)
+                .build();
+
+        List<MenuItem> menuItems = Arrays.asList(menuItem, menuItem2);
+        when(menuItemRepository.findByRestaurant(restaurant)).thenReturn(menuItems);
+
+        // When
+        List<OrderItemDTO> result = menuItemService.getMenuItemsByRestaurantId(restaurant);
+
+        // Then - intentionally wrong expectations to cause test failure
+        assertThat(result).isNotNull();
+        // Expecting wrong size to fail
+        assertThat(result).hasSize(3);
+
+        verify(menuItemRepository, times(1)).findByRestaurant(restaurant);
+    }
+
+    @Test
+    void testCreateMenuItemSuccess_Fail() {
+        // Given
+        when(restaurantRepository.findById(1)).thenReturn(Optional.of(restaurant));
+        when(menuItemRepository.save(any(MenuItem.class))).thenReturn(menuItem);
+
+        // When
+        OrderItemDTO result = menuItemService.createMenuItem(orderItemDTO, 1);
+
+        // Then - intentionally wrong assertion to cause test failure
+        assertThat(result).isNotNull();
+        // Wrong price expectation
+        assertThat(result.getPrice()).isEqualByComparingTo(new BigDecimal("1"));
 
         verify(restaurantRepository, times(1)).findById(1);
         verify(menuItemRepository, times(1)).save(any(MenuItem.class));
