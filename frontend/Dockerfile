@@ -37,12 +37,12 @@ FROM node:18 as builder
 WORKDIR /app
 
 COPY package*.json ./
-# Cài đặt dependency
-RUN npm install
+# Cài đặt dependency và Angular CLI
+RUN npm install -g @angular/cli && npm install
 
 COPY . .
 
-# Build project với cấu hình productionWW
+# Build project với cấu hình production
 RUN npm run build -- --configuration=production
 
 # Stage 2: Serve với Nginx

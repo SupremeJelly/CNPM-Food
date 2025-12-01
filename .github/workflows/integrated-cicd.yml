@@ -430,7 +430,7 @@ jobs:
           cache-to: type=inline
 
   # ========== STAGE 5: DEPLOY TO KUBERNETES (Only after successful image build) ==========
-  # TEMPORARILY DISABLED - Change "if: false" to original condition to re-enable
+  # DISABLED - Kubernetes deployment is turned off
   deploy-to-k8s:
     needs: build-images
     runs-on: self-hosted

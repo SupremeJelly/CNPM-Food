@@ -57,3 +57,10 @@ Thumbs.db
 # ensure Java build dirs ignored (explicit)
 **/target/
 **/build/
+
+# Render Environment configs
+/render-env/api-gateway.env
+/render-env/user-service.env
+/render-env/restaurant-service.env
+/render-env/order-service.env
+/render-env/payment-service.env 

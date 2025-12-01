@@ -1,212 +1,229 @@
-name: Deploy to Render
+name: Build and Push to Docker Hub for Render
 
 on:
   push:
-    # branches: [main]
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [ main, src ]
   workflow_dispatch:
 
-concurrency:
-  group: render-deploy-${{ github.ref }}
-  cancel-in-progress: false
-
 env:
-#   DOCKER_USERNAME: jelly1810
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
 
 jobs:
-  # ========== STAGE 1: TEST (Parallel) ==========
-  test-backend:
+  detect-changes:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [user-service, order-service, restaurant-service, payment-service, api-gateway]
+    outputs:
+      user-service: ${{ steps.changes.outputs.user-service }}
+      restaurant-service: ${{ steps.changes.outputs.restaurant-service }}
+      order-service: ${{ steps.changes.outputs.order-service }}
+      payment-service: ${{ steps.changes.outputs.payment-service }}
+      api-gateway: ${{ steps.changes.outputs.api-gateway }}
+      frontend: ${{ steps.changes.outputs.frontend }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
-          cache: 'maven'
+          fetch-depth: 2
 
-      - name: Run tests for ${{ matrix.service }}
-        working-directory: ./${{ matrix.service }}
-        run: mvn clean verify -B
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.service }}
-          path: |
-            ${{ matrix.service }}/target/surefire-reports/
-            ${{ matrix.service }}/target/failsafe-reports/
-          retention-days: 7
-
-  test-frontend:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: ./frontend
-        run: npm ci
-
-      - name: Lint frontend
-        working-directory: ./frontend
-        run: npm run lint
-        continue-on-error: true
-
-      - name: Run frontend tests
-        working-directory: ./frontend
-        run: npm run test:ci
-        continue-on-error: true
-
-      - name: Upload frontend test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-frontend
-          path: frontend/coverage/
-          retention-days: 7
-
-  # ========== STAGE 2: BUILD & PUSH DOCKER IMAGES ==========
-  build-and-push:
-    needs: [test-backend, test-frontend]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
-    strategy:
-      matrix:
-        service:
-          - name: frontend
-            path: ./frontend
-          - name: api-gateway
-            path: ./api-gateway
-          - name: user-service
-            path: ./user-service
-          - name: restaurant-service
-            path: ./restaurant-service
-          - name: order-service
-            path: ./order-service
-          - name: payment-service
-            path: ./payment-service
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Build and Push ${{ matrix.service.name }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.service.path }}
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service.name }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service.name }}:${{ github.sha }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service.name }}:latest
-          cache-to: type=inline
-
-  # ========== STAGE 3: DEPLOY TO RENDER ==========
-  deploy-to-render:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
-    strategy:
-      matrix:
-        service:
-          - name: user-service
-            render_service_id: ${{ secrets.RENDER_USER_SERVICE_ID }}
-          - name: restaurant-service
-            render_service_id: ${{ secrets.RENDER_RESTAURANT_SERVICE_ID }}
-          - name: order-service
-            render_service_id: ${{ secrets.RENDER_ORDER_SERVICE_ID }}
-          - name: payment-service
-            render_service_id: ${{ secrets.RENDER_PAYMENT_SERVICE_ID }}
-          - name: api-gateway
-            render_service_id: ${{ secrets.RENDER_API_GATEWAY_ID }}
-          - name: frontend
-            render_service_id: ${{ secrets.RENDER_FRONTEND_ID }}
-    
-    steps:
-      - name: Trigger Render Deploy for ${{ matrix.service.name }}
+      - name: Detect changed services
+        id: changes
         run: |
-          echo "Deploying ${{ matrix.service.name }} to Render..."
-          response=$(curl -s -w "\n%{http_code}" -X POST \
-            https://api.render.com/v1/services/${{ matrix.service.render_service_id }}/deploys \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache": "clear"}')
-          
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-          
-          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-            echo "✅ Deploy triggered successfully for ${{ matrix.service.name }}"
-            echo "$body"
+          # Get changed files between current commit and previous commit
+          if [ "${{ github.event_name }}" == "push" ]; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           else
-            echo "❌ Deploy failed for ${{ matrix.service.name }} (HTTP $http_code)"
-            echo "$body"
-            exit 1
+            # For workflow_dispatch, check all files
+            CHANGED_FILES=$(git ls-files)
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+          
+          # Check each service for changes
+          if echo "$CHANGED_FILES" | grep -q "^user-service/"; then
+            echo "✅ user-service has changes"
+            echo "user-service=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ user-service unchanged"
+            echo "user-service=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "^restaurant-service/"; then
+            echo "✅ restaurant-service has changes"
+            echo "restaurant-service=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ restaurant-service unchanged"
+            echo "restaurant-service=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "^order-service/"; then
+            echo "✅ order-service has changes"
+            echo "order-service=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ order-service unchanged"
+            echo "order-service=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "^payment-service/"; then
+            echo "✅ payment-service has changes"
+            echo "payment-service=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ payment-service unchanged"
+            echo "payment-service=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "^api-gateway/"; then
+            echo "✅ api-gateway has changes"
+            echo "api-gateway=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ api-gateway unchanged"
+            echo "api-gateway=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "^frontend/"; then
+            echo "✅ frontend has changes"
+            echo "frontend=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ frontend unchanged"
+            echo "frontend=false" >> $GITHUB_OUTPUT
           fi
 
-  # ========== STAGE 4: TEST SUMMARY ==========
-  test-summary:
-    needs: [test-backend, test-frontend]
+  build-and-push:
+    needs: detect-changes
     runs-on: ubuntu-latest
-    if: always()
     
     steps:
-      - name: Download all test results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: test-results-*
-          path: test-results/
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Generate test summary
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and Push User Service
+        if: needs.detect-changes.outputs.user-service == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./user-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-user-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-user-service:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/cnpm-food-user-service:latest
+          cache-to: type=inline
+
+      - name: Build and Push Restaurant Service
+        if: needs.detect-changes.outputs.restaurant-service == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./restaurant-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-restaurant-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-restaurant-service:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/cnpm-food-restaurant-service:latest
+          cache-to: type=inline
+
+      - name: Build and Push Order Service
+        if: needs.detect-changes.outputs.order-service == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./order-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-order-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-order-service:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/cnpm-food-order-service:latest
+          cache-to: type=inline
+
+      - name: Build and Push Payment Service
+        if: needs.detect-changes.outputs.payment-service == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./payment-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-payment-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-payment-service:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/cnpm-food-payment-service:latest
+          cache-to: type=inline
+
+      - name: Build and Push API Gateway
+        if: needs.detect-changes.outputs.api-gateway == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api-gateway
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-api-gateway:latest
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-api-gateway:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/cnpm-food-api-gateway:latest
+          cache-to: type=inline
+
+      - name: Build and Push Frontend
+        if: needs.detect-changes.outputs.frontend == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-frontend:latest
+            ${{ secrets.DOCKER_USERNAME }}/cnpm-food-frontend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/cnpm-food-frontend:latest
+          cache-to: type=inline
+
+      - name: Summary
+        if: always()
         run: |
-          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Services Built and Pushed:" >> $GITHUB_STEP_SUMMARY
           
-          for dir in test-results/*/; do
-            if [ -d "$dir" ]; then
-              SERVICE=$(basename "$dir")
-              echo "### $SERVICE" >> $GITHUB_STEP_SUMMARY
-              
-              if [ -f "$dir"/*.xml ]; then
-                TESTS=$(grep -r "tests=" "$dir" | awk -F'"' '{sum += $2} END {print sum}' || echo "N/A")
-                FAILURES=$(grep -r "failures=" "$dir" | awk -F'"' '{sum += $2} END {print sum}' || echo "0")
-                echo "- Tests: $TESTS" >> $GITHUB_STEP_SUMMARY
-                echo "- Failures: $FAILURES" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "- No test results found" >> $GITHUB_STEP_SUMMARY
-              fi
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
+          if [ "${{ needs.detect-changes.outputs.user-service }}" == "true" ]; then
+            echo "✅ **user-service** - Built and pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **user-service** - No changes, skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.restaurant-service }}" == "true" ]; then
+            echo "✅ **restaurant-service** - Built and pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **restaurant-service** - No changes, skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.order-service }}" == "true" ]; then
+            echo "✅ **order-service** - Built and pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **order-service** - No changes, skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.payment-service }}" == "true" ]; then
+            echo "✅ **payment-service** - Built and pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **payment-service** - No changes, skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.api-gateway }}" == "true" ]; then
+            echo "✅ **api-gateway** - Built and pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **api-gateway** - No changes, skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.frontend }}" == "true" ]; then
+            echo "✅ **frontend** - Built and pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ **frontend** - No changes, skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to [Render Dashboard](https://dashboard.render.com)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Services will auto-detect new images and redeploy" >> $GITHUB_STEP_SUMMARY
+          echo "3. Or manually trigger: **Settings → Manual Deploy → Clear build cache & deploy**" >> $GITHUB_STEP_SUMMARY
