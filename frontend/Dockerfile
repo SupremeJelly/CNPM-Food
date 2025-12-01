@@ -37,8 +37,8 @@ FROM node:18 as builder
 WORKDIR /app
 
 COPY package*.json ./
-# Cài đặt dependency
-RUN npm install
+# Cài đặt dependency (global CLI + local packages)
+RUN npm install -g @angular/cli && npm install
 
 COPY . .
 
