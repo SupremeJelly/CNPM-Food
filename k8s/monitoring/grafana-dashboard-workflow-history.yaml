@@ -1,0 +1,144 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-workflow-history
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  github-workflow-history.json: |
+    {
+      "dashboard": {
+        "title": "GitHub Workflow History",
+        "tags": ["github", "cicd", "workflows"],
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-24h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "type": "stat",
+            "title": "Total Workflows (24h)",
+            "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+            "targets": [
+              {
+                "expr": "count_over_time({job=\"ci\"} |= `type=workflow_start` [$__range])",
+                "refId": "A"
+              }
+            ],
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "textMode": "value_and_name"
+            }
+          },
+          {
+            "id": 5,
+            "type": "table",
+            "title": "Recent Workflow Runs (Last 20)",
+            "gridPos": { "h": 12, "w": 24, "x": 0, "y": 4 },
+            "targets": [
+              {
+                "expr": "{job=\"ci\"} |= `type=workflow_start` | logfmt",
+                "refId": "A"
+              }
+            ],
+            "transformations": [
+              {
+                "id": "organize",
+                "options": {
+                  "excludeByName": {
+                    "tsNs": true,
+                    "type": true
+                  },
+                  "renameByName": {
+                    "run_id": "Run ID",
+                    "workflow": "Workflow",
+                    "branch": "Branch"
+                  }
+                }
+              }
+            ],
+            "options": {
+              "showHeader": true,
+              "sortBy": [
+                {
+                  "displayName": "Time",
+                  "desc": true
+                }
+              ]
+            }
+          },
+          {
+            "id": 6,
+            "type": "table",
+            "title": "Job Status (Recent)",
+            "gridPos": { "h": 10, "w": 12, "x": 0, "y": 16 },
+            "targets": [
+              {
+                "expr": "{job=\"ci\"} |= `type=job_status` | logfmt",
+                "refId": "A"
+              }
+            ],
+            "transformations": [
+              {
+                "id": "organize",
+                "options": {
+                  "renameByName": {
+                    "job": "Job Name",
+                    "status": "Status"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": 7,
+            "type": "table",
+            "title": "Test Results by Service",
+            "gridPos": { "h": 10, "w": 12, "x": 12, "y": 16 },
+            "targets": [
+              {
+                "expr": "{job=\"ci\", log_type=\"test\"} |= `type=test_summary` | logfmt",
+                "refId": "A"
+              }
+            ],
+            "transformations": [
+              {
+                "id": "organize",
+                "options": {
+                  "renameByName": {
+                    "service": "Service",
+                    "total": "Total Tests",
+                    "passed": "Passed",
+                    "failed": "Failed"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": 8,
+            "type": "logs",
+            "title": "Workflow Logs Stream",
+            "gridPos": { "h": 10, "w": 24, "x": 0, "y": 26 },
+            "targets": [
+              {
+                "expr": "{job=\"ci\"}",
+                "refId": "A"
+              }
+            ],
+            "options": {
+              "showTime": true,
+              "showLabels": false,
+              "wrapLogMessage": false,
+              "dedupStrategy": "none",
+              "enableLogDetails": true
+            }
+          }
+        ]
+      }
+    }

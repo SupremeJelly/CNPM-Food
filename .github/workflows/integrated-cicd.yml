@@ -139,26 +139,6 @@ jobs:
             ${{ matrix.service }}/target/surefire-reports/
             ${{ matrix.service }}/target/failsafe-reports/
           retention-days: 7
-        run: |
-          if [ -z "$LOKI_URL" ]; then
-            echo "⚠️ LOKI_URL not set, skipping log push"
-            exit 0
-          fi
-          if [ -f loki-payloads/main_payload.json ]; then
-            curl -s -X POST "$LOKI_URL" \
-              -u "$LOKI_USER:$LOKI_PASSWORD" \
-              -H "Content-Type: application/json" \
-              -d @loki-payloads/main_payload.json && echo "✅ Main logs pushed" || echo "❌ Failed main logs"
-          else
-            echo "No main payload file found"
-          fi
-          if [ -f loki-payloads/extra_payload.json ]; then
-            curl -s -X POST "$LOKI_URL" \
-              -u "$LOKI_USER:$LOKI_PASSWORD" \
-              -H "Content-Type: application/json" \
-              -d @loki-payloads/extra_payload.json && echo "✅ Service logs pushed" || echo "❌ Failed service logs"
-          fi
-        
 
   # ========== STAGE 2: CODE QUALITY (After Tests) ==========
   # code-quality:
@@ -185,185 +165,94 @@ jobs:
   #         done
   #       continue-on-error: true
 
-      - name: Prepare loki payloads and upload artifact
-        env:
-          LOKI_URL: ${{ secrets.LOKI_URL }}
-          LOKI_USER: ${{ secrets.LOKI_USER }}
-          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+  # ========== STAGE 4: BUILD AND PUSH DOCKER IMAGES ==========
+  build-images:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: changes
         run: |
-          # If LOKI_URL not configured, skip but still produce artifacts if any
-          TS=$(date +%s)000000000
-          mkdir -p artifacts
+          # Get changed files based on event type
+          if [ "${{ github.event_name }}" = "push" ]; then
+            CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff-tree --no-commit-id --name-only -r HEAD)
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null || echo "all")
+          else
+            # workflow_dispatch - rebuild all
+            CHANGED="all"
+          fi
 
-          # start building log entries
-          LOG_ENTRIES="[$TS,\"type=workflow_start workflow=${{ github.workflow }} run=${{ github.run_id }} branch=${{ github.ref_name }}\"]"
+          echo "Changed files:"
+          echo "$CHANGED"
 
-          TOTAL_JOBS=0; PASSED_JOBS=0; FAILED_JOBS=0
-          for job_name in "test-backend" "build-artifacts" "build-images" "deploy-to-k8s"; do
-            TOTAL_JOBS=$((TOTAL_JOBS + 1))
-            case "$job_name" in
-              "test-backend") STATUS="${{ needs.test-backend.result }}" ;;
-              "build-artifacts") STATUS="${{ needs.build-artifacts.result }}" ;;
-              "build-images") STATUS="${{ needs.build-images.result }}" ;;
-              "deploy-to-k8s") STATUS="${{ needs.deploy-to-k8s.result }}" ;;
-            esac
-            if [ "$STATUS" = "success" ]; then
-              PASSED_JOBS=$((PASSED_JOBS + 1)); MSG="type=job_status job=$job_name status=pass"
-            elif [ "$STATUS" = "failure" ]; then
-              FAILED_JOBS=$((FAILED_JOBS + 1)); MSG="type=job_status job=$job_name status=fail"
+          # Determine which services changed
+          if [ "$CHANGED" = "all" ]; then
+            echo "user=true" >> $GITHUB_OUTPUT
+            echo "order=true" >> $GITHUB_OUTPUT
+            echo "restaurant=true" >> $GITHUB_OUTPUT
+            echo "payment=true" >> $GITHUB_OUTPUT
+            echo "gateway=true" >> $GITHUB_OUTPUT
+            echo "frontend=true" >> $GITHUB_OUTPUT
+          else
+            if echo "$CHANGED" | grep -q 'user-service/'; then
+              echo "user=true" >> $GITHUB_OUTPUT
             else
-              MSG="type=job_status job=$job_name status=$STATUS"
+              echo "user=false" >> $GITHUB_OUTPUT
             fi
-            LOG_ENTRIES="$LOG_ENTRIES,[$TS,\"$MSG\"]"
-          done
-
-          MSG="type=job_summary total=$TOTAL_JOBS passed=$PASSED_JOBS failed=$FAILED_JOBS"
-          LOG_ENTRIES="$LOG_ENTRIES,[$TS,\"$MSG\"]"
-
-          # --- test results per-service ---
-          TEST_STATUS="unknown"; TOTAL_TESTS_ALL=0; FAILED_TESTS_ALL=0; EXTRA_STREAMS=""
-          if [ -d "test-results" ]; then
-            for dir in test-results/*/; do
-              [ -d "$dir" ] || continue
-              RAW_NAME=$(basename "$dir")
-              SERVICE=${RAW_NAME#test-results-}
-              SVC_TESTS=0; SVC_FAILURES=0; SVC_ERRORS=0; FAILED_NAMES_LIST=""
-              for XML in "$dir"/*.xml "$dir"/**/**/*.xml; do
-                [ -f "$XML" ] || continue
-                T=$(grep -oP 'tests="\K[0-9]+' "$XML" | head -1 || echo "0")
-                F=$(grep -oP 'failures="\K[0-9]+' "$XML" | head -1 || echo "0")
-                E=$(grep -oP 'errors="\K[0-9]+' "$XML" | head -1 || echo "0")
-                SVC_TESTS=$((SVC_TESTS + T)); SVC_FAILURES=$((SVC_FAILURES + F)); SVC_ERRORS=$((SVC_ERRORS + E))
-                if [ "$F" -gt 0 ] || [ "$E" -gt 0 ]; then
-                  CURRENT_FAILS=$(grep -oP '<testcase.*?name="\K[^"']+' "$XML" | while read TNAME; do
-                    if grep -A 3 "name=\"$TNAME\"" "$XML" | grep -q '<failure\|<error'; then echo "$TNAME"; fi
-                  done)
-                  if [ -n "$CURRENT_FAILS" ]; then FAILED_NAMES_LIST="$FAILED_NAMES_LIST $CURRENT_FAILS"; fi
-                fi
-              done
             
-                # --- Emit per-test-case streams (status=pass|fail) for this XML
-                for TNAME in $(grep -oP '<testcase.*?name="\K[^"]+' "$XML" 2>/dev/null || true); do
-                  if grep -A 3 "name=\"$TNAME\"" "$XML" | grep -q '<failure\|<error'; then
-                    TSTATUS=fail
-                  else
-                    TSTATUS=pass
-                  fi
-                  MSG_TEST=$(printf 'type=test_case\nservice=%s\ntest="%s"\nstatus=%s' "$SERVICE" "$TNAME" "$TSTATUS")
-                  ESC_MSG_TEST=$(printf '%s' "$MSG_TEST" | python -c 'import json,sys; s=sys.stdin.read(); print(json.dumps(s)[1:-1])')
-                  STREAM_TEST=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test","type":"test_case"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$ESC_MSG_TEST")
-                  if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$STREAM_TEST"; else EXTRA_STREAMS="$EXTRA_STREAMS,$STREAM_TEST"; fi
-                done
-              SVC_PASSED=$((SVC_TESTS - SVC_FAILURES - SVC_ERRORS))
-              TOTAL_TESTS_ALL=$((TOTAL_TESTS_ALL + SVC_TESTS))
-              FAILED_TESTS_ALL=$((FAILED_TESTS_ALL + SVC_FAILURES + SVC_ERRORS))
-              CLEAN_FAILED_NAMES=$(echo "$FAILED_NAMES_LIST" | tr '\n' ',' | sed 's/^ *//;s/ *$//;s/^,//;s/,,/,/g;s/,$//')
-              MSG="type=test_summary service=$SERVICE total=$SVC_TESTS passed=$SVC_PASSED failed=$((SVC_FAILURES + SVC_ERRORS)) failed_cases=\"$CLEAN_FAILED_NAMES\""
-              STREAM_JSON=$(printf '{"stream":{"service":"%s","job":"ci","log_type":"test"},"values":[["%s","%s"]]}' "$SERVICE" "$TS" "$MSG")
-              if [ -z "$EXTRA_STREAMS" ]; then EXTRA_STREAMS="$STREAM_JSON"; else EXTRA_STREAMS="$EXTRA_STREAMS,$STREAM_JSON"; fi
-            done
-          fi
-          if [ "$FAILED_TESTS_ALL" -gt 0 ]; then TEST_STATUS="failed"; elif [ "$TOTAL_TESTS_ALL" -gt 0 ]; then TEST_STATUS="passed"; fi
-
-          # Write payload files
-          LOGS="[$LOG_ENTRIES]"
-          cat > artifacts/main_payload.json <<EOF
-          {"streams":[{"stream":{"job":"ci","workflow":"${{ github.workflow }}","run_id":"${{ github.run_id }}","test_status":"$TEST_STATUS"},"values":$LOGS}]}
-          EOF
-
-          if [ -n "$EXTRA_STREAMS" ]; then
-            cat > artifacts/extra_payload.json <<EOF
-            {"streams":[$EXTRA_STREAMS]}
-            EOF
-          fi
-
-          # include raw test-results so artifacts are useful for debugging
-          if [ -d "test-results" ]; then
-            mkdir -p artifacts/test-results
-            cp -r test-results/* artifacts/test-results/ || true
-          fi
-
-          echo "Created artifacts:"; ls -la artifacts || true
-
-      - name: Upload loki payloads artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: loki-payloads
-          path: artifacts
-          if-no-files-found: ignore
-
-      - name: Download loki payloads and send to Loki
-        env:
-          LOKI_URL: ${{ secrets.LOKI_URL }}
-          LOKI_USER: ${{ secrets.LOKI_USER }}
-          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-        uses: actions/download-artifact@v4
-        with:
-          name: loki-payloads
-          path: loki_artifacts
-        continue-on-error: true
-
-      - name: Send downloaded payloads to Loki
-        env:
-          LOKI_URL: ${{ secrets.LOKI_URL }}
-          LOKI_USER: ${{ secrets.LOKI_USER }}
-          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-        run: |
-          if [ -z "$LOKI_URL" ]; then
-            echo "⚠️ LOKI_URL not set; skipping POST to Loki."
-            exit 0
-          fi
-          if [ -f "loki_artifacts/artifacts/main_payload.json" ]; then
-            curl -s -X POST "$LOKI_URL" -u "$LOKI_USER:$LOKI_PASSWORD" -H "Content-Type: application/json" --data-binary @loki_artifacts/artifacts/main_payload.json && echo "✅ Main logs pushed" || echo "❌ Failed main logs"
-          else
-            echo "No main_payload.json found in artifact"
-          fi
-          if [ -f "loki_artifacts/artifacts/extra_payload.json" ]; then
-            curl -s -X POST "$LOKI_URL" -u "$LOKI_USER:$LOKI_PASSWORD" -H "Content-Type: application/json" --data-binary @loki_artifacts/artifacts/extra_payload.json && echo "✅ Service logs pushed" || echo "❌ Failed service logs"
-          else
-            echo "No extra_payload.json found in artifact"
-          fi
-
-      - name: Append detailed test summary
-        run: |
-          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          for dir in test-results/*/; do
-            if [ -d "$dir" ]; then
-              SERVICE=$(basename "$dir")
-              echo "### $SERVICE" >> $GITHUB_STEP_SUMMARY
-
-              XML_COUNT=$(find "$dir" -name "*.xml" -type f 2>/dev/null | wc -l)
-              if [ "$XML_COUNT" -gt 0 ]; then
-                TESTS=$(grep -rh 'tests=' "$dir" 2>/dev/null | grep -oP 'tests="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
-                FAILURES=$(grep -rh 'failures=' "$dir" 2>/dev/null | grep -oP 'failures="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
-                ERRORS=$(grep -rh 'errors=' "$dir" 2>/dev/null | grep -oP 'errors="\K[0-9]+' | awk '{sum += $1} END {print (NR>0 ? sum : 0)}')
-                PASSED=$((TESTS - FAILURES - ERRORS))
-
-                echo "- ✅ Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
-                echo "- ❌ Failed: $FAILURES" >> $GITHUB_STEP_SUMMARY
-                echo "- ⚠️ Errors: $ERRORS" >> $GITHUB_STEP_SUMMARY
-                echo "- 📊 Total: $TESTS" >> $GITHUB_STEP_SUMMARY
-
-                if [ "$FAILURES" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "#### ❌ Failed Tests:" >> $GITHUB_STEP_SUMMARY
-                  for XML in "$dir"/*.xml "$dir"/**/**/*.xml; do
-                    [ -f "$XML" ] || continue
-                    grep -oP '<testcase.*?name="\K[^"']+' "$XML" 2>/dev/null | while read TEST; do
-                      if grep -A 3 "name=\"$TEST\"" "$XML" | grep -q '<failure\|<error'; then
-                        echo "- \\`$TEST\\`" >> $GITHUB_STEP_SUMMARY
-                      fi
-                    done
-                  done
-                fi
-              else
-                echo "- No test results found" >> $GITHUB_STEP_SUMMARY
-              fi
-              echo "" >> $GITHUB_STEP_SUMMARY
+            if echo "$CHANGED" | grep -q 'order-service/'; then
+              echo "order=true" >> $GITHUB_OUTPUT
+            else
+              echo "order=false" >> $GITHUB_OUTPUT
             fi
-          done
+            
+            if echo "$CHANGED" | grep -q 'restaurant-service/'; then
+              echo "restaurant=true" >> $GITHUB_OUTPUT
+            else
+              echo "restaurant=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if echo "$CHANGED" | grep -q 'payment-service/'; then
+              echo "payment=true" >> $GITHUB_OUTPUT
+            else
+              echo "payment=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if echo "$CHANGED" | grep -q 'api-gateway/'; then
+              echo "gateway=true" >> $GITHUB_OUTPUT
+            else
+              echo "gateway=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if echo "$CHANGED" | grep -q 'frontend/'; then
+              echo "frontend=true" >> $GITHUB_OUTPUT
+            else
+              echo "frontend=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and Push user-service
+        if: steps.changes.outputs.user == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./user-service
+          push: true
+          tags: |
             onlykohi/cnpm-user-service:latest
             onlykohi/cnpm-user-service:${{ github.sha }}
           cache-from: type=registry,ref=onlykohi/cnpm-user-service:latest
@@ -429,13 +318,12 @@ jobs:
           cache-from: type=registry,ref=onlykohi/cnpm-frontend:latest
           cache-to: type=inline
 
-  # ========== STAGE 5: DEPLOY TO KUBERNETES (Only after successful image build) ==========
-  # DISABLED - Kubernetes deployment is turned off
+  # ========== STAGE 5: DEPLOY TO KUBERNETES ==========
   deploy-to-k8s:
     needs: build-images
     runs-on: self-hosted
     environment: staging
-    if: false
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
 
@@ -730,7 +618,7 @@ jobs:
 
   # ========== STAGE 6: EXPORT LOGS TO LOKI ==========
   export-logs-to-loki:
-    needs: [test-backend, build-artifacts, build-images, deploy-to-k8s]
+    needs: [test-backend, build-images, deploy-to-k8s]
     runs-on: ubuntu-latest
     if: always()
     environment: staging
@@ -764,11 +652,10 @@ jobs:
           PASSED_JOBS=0
           FAILED_JOBS=0
           
-          for job_name in "test-backend" "build-artifacts" "build-images" "deploy-to-k8s"; do
+          for job_name in "test-backend" "build-images" "deploy-to-k8s"; do
             TOTAL_JOBS=$((TOTAL_JOBS + 1))
             case "$job_name" in
               "test-backend") STATUS="${{ needs.test-backend.result }}" ;;
-              "build-artifacts") STATUS="${{ needs.build-artifacts.result }}" ;;
               "build-images") STATUS="${{ needs.build-images.result }}" ;;
               "deploy-to-k8s") STATUS="${{ needs.deploy-to-k8s.result }}" ;;
             esac

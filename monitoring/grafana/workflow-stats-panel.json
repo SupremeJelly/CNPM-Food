@@ -1,0 +1,60 @@
+{
+  "datasource": {
+    "type": "loki",
+    "uid": "grafanacloud-logs"
+  },
+  "targets": [
+    {
+      "expr": "sum(count_over_time({job=\"ci\"} | logfmt | type=\"job_summary\" [$__range]))",
+      "refId": "A",
+      "legendFormat": "Total Workflows"
+    }
+  ],
+  "type": "stat",
+  "title": "Total Workflow Runs",
+  "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 0,
+    "y": 0
+  },
+  "id": 10,
+  "options": {
+    "reduceOptions": {
+      "values": false,
+      "calcs": [
+        "lastNotNull"
+      ]
+    },
+    "orientation": "auto",
+    "textMode": "value_and_name",
+    "colorMode": "background",
+    "graphMode": "area",
+    "justifyMode": "auto"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "thresholds"
+      },
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {
+            "color": "blue",
+            "value": null
+          },
+          {
+            "color": "green",
+            "value": 10
+          },
+          {
+            "color": "yellow",
+            "value": 50
+          }
+        ]
+      },
+      "unit": "short"
+    }
+  }
+}

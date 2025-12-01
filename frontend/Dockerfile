@@ -53,7 +53,6 @@ FROM nginx:alpine
 COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
 
 # Tạo file cấu hình Nginx trực tiếp tại đây để tránh lỗi MIME type
-# Include mime types and ensure static assets return 404 (not index.html) when missing
 RUN echo 'server { \
     listen 80; \
     server_name localhost; \
@@ -77,6 +76,8 @@ RUN echo 'server { \
         add_header Cache-Control "public, immutable"; \
     } \
 }' > /etc/nginx/conf.d/default.conf
+
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

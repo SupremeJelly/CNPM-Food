@@ -11,6 +11,9 @@ spring:
           '[/**]':
             allowedOrigins: 
               - "http://localhost:4200"
+              - "http://localhost"
+              - "http://192.168.1.5"
+              - "*"  # Allow all origins (for development/testing)
             allowedMethods:
               - "GET"
               - "POST"

@@ -1,0 +1,303 @@
+{
+  "dashboard": {
+    "title": "GitHub Workflow History",
+    "tags": ["github", "cicd", "workflows"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Total Workflows (24h)",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "count_over_time({job=\"ci\"} |= `type=workflow_start` [$__range])",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Successful Workflows",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "count_over_time({job=\"ci\"} |= `type=job_summary` |= `failed=0` [$__range])",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "fixed", "fixedColor": "green" },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Failed Workflows",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "count_over_time({job=\"ci\"} |= `type=job_summary` | regexp `failed=(?P<failed>\\d+)` | unwrap failed | __error__=\"\" | sum by (run_id) | count_over_time({__name__=~\".+\"} > 0 [$__range])",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "fixed", "fixedColor": "red" },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "red", "value": null }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Success Rate",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "expr": "100 * count_over_time({job=\"ci\"} |= `type=job_summary` |= `failed=0` [$__range]) / count_over_time({job=\"ci\"} |= `type=workflow_start` [$__range])",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "red", "value": null },
+                { "color": "yellow", "value": 70 },
+                { "color": "green", "value": 90 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "type": "timeseries",
+        "title": "Workflow Execution Timeline",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+        "targets": [
+          {
+            "expr": "{job=\"ci\"} |= `type=workflow_start`",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "points",
+              "pointSize": 8
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "type": "table",
+        "title": "Recent Workflow Runs",
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+        "targets": [
+          {
+            "expr": "{job=\"ci\"} |= `type=workflow_start` | logfmt | line_format `{{.run_id}} | {{.workflow}} | {{.branch}}`",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "transformations": [
+          {
+            "id": "extractFields",
+            "options": {
+              "source": "Line"
+            }
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sortBy": [
+            {
+              "displayName": "Time",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 7,
+        "type": "table",
+        "title": "Job Status Summary",
+        "gridPos": { "h": 10, "w": 12, "x": 0, "y": 22 },
+        "targets": [
+          {
+            "expr": "{job=\"ci\"} |= `type=job_status` | logfmt | line_format `{{.job}} - {{.status}}`",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "options": {
+          "showHeader": true
+        }
+      },
+      {
+        "id": 8,
+        "type": "table",
+        "title": "Test Results Summary",
+        "gridPos": { "h": 10, "w": 12, "x": 12, "y": 22 },
+        "targets": [
+          {
+            "expr": "{job=\"ci\", log_type=\"test\"} |= `type=test_summary` | logfmt | line_format `{{.service}} - Total: {{.total}} | Passed: {{.passed}} | Failed: {{.failed}}`",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sortBy": [
+            {
+              "displayName": "Time",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 9,
+        "type": "bargauge",
+        "title": "Service Test Pass Rate",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+        "targets": [
+          {
+            "expr": "{job=\"ci\", log_type=\"test\"} |= `type=test_summary` | logfmt | line_format `{{.service}}: {{div (mul (float .passed) 100) (float .total)}}`",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showUnfilled": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "red", "value": null },
+                { "color": "yellow", "value": 70 },
+                { "color": "green", "value": 90 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "type": "logs",
+        "title": "Workflow Logs (Real-time)",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+        "targets": [
+          {
+            "expr": "{job=\"ci\"}",
+            "refId": "A",
+            "datasource": { "type": "loki", "uid": "${DS_LOKI}" }
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "wrapLogMessage": true,
+          "dedupStrategy": "none"
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "DS_LOKI",
+          "type": "datasource",
+          "query": "loki"
+        },
+        {
+          "name": "workflow",
+          "type": "query",
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "query": "label_values({job=\"ci\"}, workflow)",
+          "refresh": 1,
+          "multi": false,
+          "includeAll": true
+        },
+        {
+          "name": "branch",
+          "type": "query",
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "query": "label_values({job=\"ci\"}, branch)",
+          "refresh": 1,
+          "multi": false,
+          "includeAll": true
+        }
+      ]
+    }
+  }
+}
