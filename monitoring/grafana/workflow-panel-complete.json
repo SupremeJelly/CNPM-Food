@@ -1,0 +1,244 @@
+{
+  "datasource": {
+    "type": "loki",
+    "uid": "${datasource}"
+  },
+  "targets": [
+    {
+      "expr": "{job=\"ci\"} | logfmt | __error__=\"\"",
+      "refId": "A",
+      "maxLines": 1000
+    }
+  ],
+  "type": "table",
+  "title": "Workflow History",
+  "transformations": [
+    {
+      "id": "organize",
+      "options": {
+        "excludeByName": {
+          "Time": false,
+          "id": true,
+          "tsNs": true
+        },
+        "indexByName": {
+          "Time": 0,
+          "workflow": 1,
+          "run_id": 2,
+          "branch": 3,
+          "type": 4,
+          "service": 5,
+          "job": 6,
+          "status": 7,
+          "test_status": 8,
+          "total": 9,
+          "passed": 10,
+          "failed": 11,
+          "failed_cases": 12
+        },
+        "renameByName": {
+          "Time": "⏰ Time",
+          "workflow": "📋 Workflow",
+          "run_id": "🔢 Run ID",
+          "branch": "🌿 Branch",
+          "type": "📌 Type",
+          "service": "🔧 Service",
+          "job": "⚙️ Job",
+          "status": "✅ Status",
+          "test_status": "🧪 Test Status",
+          "total": "📊 Total",
+          "passed": "✅ Passed",
+          "failed": "❌ Failed",
+          "failed_cases": "💥 Failed Tests"
+        }
+      }
+    }
+  ],
+  "fieldConfig": {
+    "defaults": {
+      "custom": {
+        "align": "auto",
+        "displayMode": "auto",
+        "filterable": true
+      }
+    },
+    "overrides": [
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "✅ Status"
+        },
+        "properties": [
+          {
+            "id": "mappings",
+            "value": [
+              {
+                "type": "value",
+                "options": {
+                  "pass": {
+                    "text": "✅ Pass",
+                    "color": "green"
+                  }
+                }
+              },
+              {
+                "type": "value",
+                "options": {
+                  "fail": {
+                    "text": "❌ Fail",
+                    "color": "red"
+                  }
+                }
+              },
+              {
+                "type": "value",
+                "options": {
+                  "skipped": {
+                    "text": "⏭️ Skipped",
+                    "color": "yellow"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "custom.displayMode",
+            "value": "color-background"
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "🧪 Test Status"
+        },
+        "properties": [
+          {
+            "id": "mappings",
+            "value": [
+              {
+                "type": "value",
+                "options": {
+                  "passed": {
+                    "text": "✅ Passed",
+                    "color": "green"
+                  }
+                }
+              },
+              {
+                "type": "value",
+                "options": {
+                  "failed": {
+                    "text": "❌ Failed",
+                    "color": "red"
+                  }
+                }
+              },
+              {
+                "type": "value",
+                "options": {
+                  "success": {
+                    "text": "✅ Success",
+                    "color": "green"
+                  }
+                }
+              },
+              {
+                "type": "value",
+                "options": {
+                  "failure": {
+                    "text": "❌ Failure",
+                    "color": "red"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "custom.displayMode",
+            "value": "color-background"
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "❌ Failed"
+        },
+        "properties": [
+          {
+            "id": "custom.displayMode",
+            "value": "color-background"
+          },
+          {
+            "id": "thresholds",
+            "value": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "green"
+                },
+                {
+                  "value": 1,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "🔢 Run ID"
+        },
+        "properties": [
+          {
+            "id": "links",
+            "value": [
+              {
+                "title": "View on GitHub",
+                "url": "https://github.com/SupremeJelly/CNPM-Food/actions/runs/${__value.text}"
+              }
+            ]
+          },
+          {
+            "id": "custom.width",
+            "value": 120
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "📋 Workflow"
+        },
+        "properties": [
+          {
+            "id": "custom.width",
+            "value": 250
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "💥 Failed Tests"
+        },
+        "properties": [
+          {
+            "id": "custom.width",
+            "value": 300
+          }
+        ]
+      }
+    ]
+  },
+  "options": {
+    "showHeader": true,
+    "footer": {
+      "show": false
+    }
+  }
+}

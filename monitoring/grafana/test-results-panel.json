@@ -1,0 +1,149 @@
+{
+  "datasource": {
+    "type": "loki",
+    "uid": "${datasource}"
+  },
+  "targets": [
+    {
+      "expr": "{job=\"ci\"} | logfmt | type=\"test_summary\"",
+      "refId": "A",
+      "maxLines": 500
+    }
+  ],
+  "type": "table",
+  "title": "Test Results by Service",
+  "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 0
+  },
+  "id": 2,
+  "options": {
+    "showHeader": true,
+    "sortBy": [
+      {
+        "desc": true,
+        "displayName": "Time"
+      }
+    ]
+  },
+  "transformations": [
+    {
+      "id": "organize",
+      "options": {
+        "excludeByName": {
+          "Time": false,
+          "type": true,
+          "job": true,
+          "log_type": true,
+          "id": true,
+          "tsNs": true,
+          "workflow": true,
+          "run_id": true
+        },
+        "indexByName": {
+          "Time": 0,
+          "service": 1,
+          "total": 2,
+          "passed": 3,
+          "failed": 4,
+          "failed_cases": 5
+        },
+        "renameByName": {
+          "Time": "⏰ Time",
+          "service": "🔧 Service",
+          "total": "📊 Total Tests",
+          "passed": "✅ Passed",
+          "failed": "❌ Failed",
+          "failed_cases": "💥 Failed Test Cases"
+        }
+      }
+    }
+  ],
+  "fieldConfig": {
+    "defaults": {
+      "custom": {
+        "align": "auto",
+        "displayMode": "auto",
+        "filterable": true
+      }
+    },
+    "overrides": [
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "❌ Failed"
+        },
+        "properties": [
+          {
+            "id": "custom.displayMode",
+            "value": "color-background"
+          },
+          {
+            "id": "thresholds",
+            "value": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "green"
+                },
+                {
+                  "value": 1,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "✅ Passed"
+        },
+        "properties": [
+          {
+            "id": "custom.displayMode",
+            "value": "color-background"
+          },
+          {
+            "id": "thresholds",
+            "value": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "red"
+                },
+                {
+                  "value": 1,
+                  "color": "green"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "💥 Failed Test Cases"
+        },
+        "properties": [
+          {
+            "id": "custom.width",
+            "value": 400
+          }
+        ]
+      }
+    ]
+  },
+  "options": {
+    "showHeader": true,
+    "footer": {
+      "show": false
+    }
+  }
+}

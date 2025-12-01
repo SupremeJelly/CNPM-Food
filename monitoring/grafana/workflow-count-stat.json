@@ -1,0 +1,50 @@
+{
+  "datasource": {
+    "type": "loki",
+    "uid": "${datasource}"
+  },
+  "targets": [
+    {
+      "expr": "count_over_time({job=\"ci\"} | logfmt | type=\"workflow_start\" [$__range])",
+      "refId": "A"
+    }
+  ],
+  "type": "stat",
+  "title": "Total Workflow Runs",
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "thresholds"
+      },
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {
+            "value": null,
+            "color": "blue"
+          },
+          {
+            "value": 10,
+            "color": "green"
+          },
+          {
+            "value": 50,
+            "color": "yellow"
+          }
+        ]
+      },
+      "unit": "short"
+    }
+  },
+  "options": {
+    "reduceOptions": {
+      "values": false,
+      "calcs": ["lastNotNull"]
+    },
+    "orientation": "auto",
+    "textMode": "value_and_name",
+    "colorMode": "background",
+    "graphMode": "area",
+    "justifyMode": "auto"
+  }
+}
