@@ -36,19 +36,19 @@ public class MenuItemService {
                 .toList();
     }
 
-    public OrderItemDTO createMenuItem (OrderItemDTO menuItemDTO, Integer restaurantId) {
-        Restaurant restaurant = restaurantRepository.findById(restaurantId)
-                .orElseThrow(() -> new RestaurantNotFoundException("Restaurant not found"));
-        MenuItem menuItem = MenuItem.builder()
-                .name(menuItemDTO.getName())
-                .price(menuItemDTO.getPrice())
-                .stock(menuItemDTO.getStock())
-                .imageUrl(menuItemDTO.getImageUrl())
-                .restaurant(restaurant)
-                .build();
-        menuItemRepository.save(menuItem);
-        return toDTO(menuItem);
-    }
+//     public OrderItemDTO createMenuItem (OrderItemDTO menuItemDTO, Integer restaurantId) {
+//         Restaurant restaurant = restaurantRepository.findById(restaurantId)
+//                 .orElseThrow(() -> new RestaurantNotFoundException("Restaurant not found"));
+//         MenuItem menuItem = MenuItem.builder()
+//                 .name(menuItemDTO.getName())
+//                 .price(menuItemDTO.getPrice())
+//                 .stock(menuItemDTO.getStock())
+//                 .imageUrl(menuItemDTO.getImageUrl())
+//                 .restaurant(restaurant)
+//                 .build();
+//         menuItemRepository.save(menuItem);
+//         return toDTO(menuItem);
+//     }
 
     public OrderItemDTO uploadImage(Integer menuItemId, MultipartFile file) throws IOException {
         MenuItem menuItem = menuItemRepository.findById(menuItemId)
