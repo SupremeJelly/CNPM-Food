@@ -50,7 +50,7 @@ spec:
         - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_ADD-TO-SIMPLE-URL-HANDLER-MAPPING
           value: "true"
         - name: ALLOWED_ORIGINS
-          value: "http://localhost,http://localhost:4200,http://localhost:80"
+          value: "http://localhost,http://localhost:4200,http://localhost:80,http://localhost:8080,http://127.0.0.1,http://127.0.0.1:8080"
         startupProbe:
           httpGet:
             path: /actuator/health
