@@ -742,7 +742,7 @@ jobs:
 
   # ========== STAGE 6: EXPORT LOGS TO LOKI ==========
   export-logs-to-loki:
-    needs: [test-backend, test-frontend, build-artifacts, build-images, deploy-to-k8s]
+    needs: [test-backend, test-frontend, build-artifacts, build-images]
     runs-on: ubuntu-latest
     if: always()
     environment: staging
