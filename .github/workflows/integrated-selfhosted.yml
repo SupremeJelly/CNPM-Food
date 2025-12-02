@@ -442,303 +442,303 @@ jobs:
 
   # ========== STAGE 5: DEPLOY TO KUBERNETES (Only after successful image build) ==========
   # TEMPORARILY DISABLED - Change "if: false" to original condition to re-enable
-  deploy-to-k8s:
-    needs: build-images
-    runs-on: self-hosted
-    environment: staging
-    # Enable deploy only on push to main or src branches
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
-    permissions:
-      contents: read
+  # deploy-to-k8s:
+  #   needs: build-images
+  #   runs-on: self-hosted
+  #   environment: staging
+  #   # Enable deploy only on push to main or src branches
+  #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/src')
+  #   permissions:
+  #     contents: read
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          clean: true
-          ref: ${{ github.ref }}
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #         clean: true
+  #         ref: ${{ github.ref }}
 
-      - name: Detect changed paths
-        id: changes
-        shell: powershell
-        run: |
-          # Get changed files
-          $CHANGED = ""
-          if ("${{ github.event_name }}" -eq "push") {
-            try {
-              $CHANGED = git diff --name-only HEAD~1 HEAD 2>$null
-            } catch {
-              $CHANGED = git diff-tree --no-commit-id --name-only -r HEAD
-            }
-          } else {
-            $CHANGED = "all"
-          }
+  #     - name: Detect changed paths
+  #       id: changes
+  #       shell: powershell
+  #       run: |
+  #         # Get changed files
+  #         $CHANGED = ""
+  #         if ("${{ github.event_name }}" -eq "push") {
+  #           try {
+  #             $CHANGED = git diff --name-only HEAD~1 HEAD 2>$null
+  #           } catch {
+  #             $CHANGED = git diff-tree --no-commit-id --name-only -r HEAD
+  #           }
+  #         } else {
+  #           $CHANGED = "all"
+  #         }
 
-          Write-Host "Changed files:"
-          Write-Host $CHANGED
+  #         Write-Host "Changed files:"
+  #         Write-Host $CHANGED
 
-          # Check if only workflow/k8s files changed (no code changes)
-          $WORKFLOW_ONLY = $false
-          if ($CHANGED -match '\.github/|k8s/') {
-            if ($CHANGED -notmatch '\.(java|xml|properties|ts|js|html|css|scss|json|Dockerfile)') {
-              $WORKFLOW_ONLY = $true
-              Write-Host "Only workflow/k8s files changed - will use existing images with :latest tag"
-              # Set all services to true to trigger redeploy with existing images
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=false"
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "workflow_only=true"
-              return
-            }
-          }
+  #         # Check if only workflow/k8s files changed (no code changes)
+  #         $WORKFLOW_ONLY = $false
+  #         if ($CHANGED -match '\.github/|k8s/') {
+  #           if ($CHANGED -notmatch '\.(java|xml|properties|ts|js|html|css|scss|json|Dockerfile)') {
+  #             $WORKFLOW_ONLY = $true
+  #             Write-Host "Only workflow/k8s files changed - will use existing images with :latest tag"
+  #             # Set all services to true to trigger redeploy with existing images
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=false"
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "workflow_only=true"
+  #             return
+  #           }
+  #         }
 
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "workflow_only=false"
+  #         Add-Content -Path $env:GITHUB_OUTPUT -Value "workflow_only=false"
 
-          # Determine which services changed (ignore docs/workflows)
-          if ($CHANGED -eq "all") {
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=true"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
-          } else {
-            # Check each service (only source code changes)
-            if ($CHANGED -match 'user-service/.*\.(java|xml|properties|Dockerfile)') {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
-            } else {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "user=false"
-            }
+  #         # Determine which services changed (ignore docs/workflows)
+  #         if ($CHANGED -eq "all") {
+  #           Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
+  #           Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
+  #           Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
+  #           Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
+  #           Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
+  #           Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
+  #           Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=true"
+  #           Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
+  #         } else {
+  #           # Check each service (only source code changes)
+  #           if ($CHANGED -match 'user-service/.*\.(java|xml|properties|Dockerfile)') {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "user=true"
+  #           } else {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "user=false"
+  #           }
             
-            if ($CHANGED -match 'order-service/.*\.(java|xml|properties|Dockerfile)') {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
-            } else {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "order=false"
-            }
+  #           if ($CHANGED -match 'order-service/.*\.(java|xml|properties|Dockerfile)') {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "order=true"
+  #           } else {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "order=false"
+  #           }
             
-            if ($CHANGED -match 'restaurant-service/.*\.(java|xml|properties|Dockerfile)') {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
-            } else {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=false"
-            }
+  #           if ($CHANGED -match 'restaurant-service/.*\.(java|xml|properties|Dockerfile)') {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=true"
+  #           } else {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "restaurant=false"
+  #           }
             
-            if ($CHANGED -match 'payment-service/.*\.(java|xml|properties|Dockerfile)') {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
-            } else {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=false"
-            }
+  #           if ($CHANGED -match 'payment-service/.*\.(java|xml|properties|Dockerfile)') {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=true"
+  #           } else {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "payment=false"
+  #           }
             
-            if ($CHANGED -match 'api-gateway/.*\.(java|xml|properties|Dockerfile)') {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
-            } else {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=false"
-            }
+  #           if ($CHANGED -match 'api-gateway/.*\.(java|xml|properties|Dockerfile)') {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=true"
+  #           } else {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "gateway=false"
+  #           }
             
-            if ($CHANGED -match 'frontend/.*\.(ts|js|html|css|scss|json|Dockerfile)') {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
-            } else {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=false"
-            }
+  #           if ($CHANGED -match 'frontend/.*\.(ts|js|html|css|scss|json|Dockerfile)') {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=true"
+  #           } else {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "frontend=false"
+  #           }
             
-            if ($CHANGED -match 'mysql-init/') {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=true"
-            } else {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=false"
-            }
+  #           if ($CHANGED -match 'mysql-init/') {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=true"
+  #           } else {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "mysql=false"
+  #           }
             
-            if ($CHANGED -match 'k8s/') {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
-            } else {
-              Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=false"
-            }
-          }
+  #           if ($CHANGED -match 'k8s/') {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=true"
+  #           } else {
+  #             Add-Content -Path $env:GITHUB_OUTPUT -Value "k8s=false"
+  #           }
+  #         }
 
-      - name: Login to DockerHub (for pulling images)
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
+  #     - name: Login to DockerHub (for pulling images)
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_TOKEN }}
 
-      # Set up kubectl (using Docker Desktop's default kubeconfig)
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+  #     # Set up kubectl (using Docker Desktop's default kubeconfig)
+  #     - name: Set up kubectl
+  #       uses: azure/setup-kubectl@v4
 
-      - name: Verify kubectl connection
-        shell: powershell
-        run: |
-          Write-Host "Checking kubectl connection..."
+  #     - name: Verify kubectl connection
+  #       shell: powershell
+  #       run: |
+  #         Write-Host "Checking kubectl connection..."
           
-          # Retry kubectl commands up to 3 times with 30-second delays
-          $maxRetries = 3
-          $retryCount = 0
-          $success = $false
+  #         # Retry kubectl commands up to 3 times with 30-second delays
+  #         $maxRetries = 3
+  #         $retryCount = 0
+  #         $success = $false
           
-          while ($retryCount -lt $maxRetries -and -not $success) {
-            try {
-              Write-Host "Attempt $($retryCount + 1) of $maxRetries..."
+  #         while ($retryCount -lt $maxRetries -and -not $success) {
+  #           try {
+  #             Write-Host "Attempt $($retryCount + 1) of $maxRetries..."
               
-              kubectl version --client=true
-              if ($LASTEXITCODE -ne 0) { throw "kubectl version failed" }
+  #             kubectl version --client=true
+  #             if ($LASTEXITCODE -ne 0) { throw "kubectl version failed" }
               
-              kubectl config current-context
-              if ($LASTEXITCODE -ne 0) { throw "kubectl config failed" }
+  #             kubectl config current-context
+  #             if ($LASTEXITCODE -ne 0) { throw "kubectl config failed" }
               
-              kubectl cluster-info
-              if ($LASTEXITCODE -ne 0) { throw "kubectl cluster-info failed" }
+  #             kubectl cluster-info
+  #             if ($LASTEXITCODE -ne 0) { throw "kubectl cluster-info failed" }
               
-              kubectl get nodes
-              if ($LASTEXITCODE -ne 0) { throw "kubectl get nodes failed" }
+  #             kubectl get nodes
+  #             if ($LASTEXITCODE -ne 0) { throw "kubectl get nodes failed" }
               
-              $success = $true
-              Write-Host "kubectl connection verified successfully."
-            } catch {
-              Write-Host "Attempt $($retryCount + 1) failed: $_"
-              $retryCount++
-              if ($retryCount -lt $maxRetries) {
-                Write-Host "Waiting 30 seconds before retry..."
-                Start-Sleep -Seconds 30
-              }
-            }
-          }
+  #             $success = $true
+  #             Write-Host "kubectl connection verified successfully."
+  #           } catch {
+  #             Write-Host "Attempt $($retryCount + 1) failed: $_"
+  #             $retryCount++
+  #             if ($retryCount -lt $maxRetries) {
+  #               Write-Host "Waiting 30 seconds before retry..."
+  #               Start-Sleep -Seconds 30
+  #             }
+  #           }
+  #         }
           
-          if (-not $success) {
-            Write-Host "Failed to connect to kubectl after $maxRetries attempts. Please ensure Docker Desktop is running and Kubernetes is enabled."
-            exit 1
-          }
+  #         if (-not $success) {
+  #           Write-Host "Failed to connect to kubectl after $maxRetries attempts. Please ensure Docker Desktop is running and Kubernetes is enabled."
+  #           exit 1
+  #         }
 
-      - name: Prepare MySQL Deployment
-        shell: powershell
-        run: |
-          # Namespaces
-          kubectl create namespace $env:NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+  #     - name: Prepare MySQL Deployment
+  #       shell: powershell
+  #       run: |
+  #         # Namespaces
+  #         kubectl create namespace $env:NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+  #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
-          $mysqlChanged = "${{ steps.changes.outputs.mysql }}" -eq "true"
-          $mysqlExists = (kubectl get deploy/mysql -n $env:NAMESPACE --ignore-not-found | Select-String 'mysql')
-          if ($mysqlExists -and -not $mysqlChanged) {
-            Write-Host 'MySQL already exists and init.sql unchanged – skipping redeploy.'
-          } else {
-            Write-Host 'Applying (or reapplying) MySQL resources.'
-            kubectl create configmap mysql-init-script -n $env:NAMESPACE --from-file=init.sql=mysql-init/init.sql --dry-run=client -o yaml | kubectl apply -f -
-            kubectl apply -n $env:NAMESPACE -f k8s/services/mysql-deployment.yaml
-            Write-Host 'Waiting for MySQL to be ready...'
-            kubectl wait --for=condition=ready pod -l app=mysql -n $env:NAMESPACE --timeout=300s
-          }
+  #         $mysqlChanged = "${{ steps.changes.outputs.mysql }}" -eq "true"
+  #         $mysqlExists = (kubectl get deploy/mysql -n $env:NAMESPACE --ignore-not-found | Select-String 'mysql')
+  #         if ($mysqlExists -and -not $mysqlChanged) {
+  #           Write-Host 'MySQL already exists and init.sql unchanged – skipping redeploy.'
+  #         } else {
+  #           Write-Host 'Applying (or reapplying) MySQL resources.'
+  #           kubectl create configmap mysql-init-script -n $env:NAMESPACE --from-file=init.sql=mysql-init/init.sql --dry-run=client -o yaml | kubectl apply -f -
+  #           kubectl apply -n $env:NAMESPACE -f k8s/services/mysql-deployment.yaml
+  #           Write-Host 'Waiting for MySQL to be ready...'
+  #           kubectl wait --for=condition=ready pod -l app=mysql -n $env:NAMESPACE --timeout=300s
+  #         }
 
-      # Note: Monitoring deployment removed from CI.
-      # Monitoring manifests are intentionally not applied by this pipeline. Monitoring (Prometheus/Grafana/Loki)
-      # should be installed and managed separately (manually or via a dedicated infrastructure pipeline).
-      # If you need to apply monitoring manifests manually, run locally or in a dedicated job:
-      #   kubectl apply -n monitoring -f k8s/monitoring
+  #     # Note: Monitoring deployment removed from CI.
+  #     # Monitoring manifests are intentionally not applied by this pipeline. Monitoring (Prometheus/Grafana/Loki)
+  #     # should be installed and managed separately (manually or via a dedicated infrastructure pipeline).
+  #     # If you need to apply monitoring manifests manually, run locally or in a dedicated job:
+  #     #   kubectl apply -n monitoring -f k8s/monitoring
 
-      - name: Deploy Microservices (backends first, gateway last)
-        shell: powershell
-        run: |
-          Write-Host "Applying backend deployments first..."
-          $backendFiles = @(
-            "user-service-deployment.yaml",
-            "restaurant-service-deployment.yaml",
-            "order-service-deployment.yaml",
-            "payment-service-deployment.yaml"
-          )
-          foreach ($f in $backendFiles) {
-            $full = "k8s/services/" + $f
-            Write-Host "Applying $full"
-            kubectl apply -n $env:NAMESPACE -f $full
-          }
+  #     - name: Deploy Microservices (backends first, gateway last)
+  #       shell: powershell
+  #       run: |
+  #         Write-Host "Applying backend deployments first..."
+  #         $backendFiles = @(
+  #           "user-service-deployment.yaml",
+  #           "restaurant-service-deployment.yaml",
+  #           "order-service-deployment.yaml",
+  #           "payment-service-deployment.yaml"
+  #         )
+  #         foreach ($f in $backendFiles) {
+  #           $full = "k8s/services/" + $f
+  #           Write-Host "Applying $full"
+  #           kubectl apply -n $env:NAMESPACE -f $full
+  #         }
 
-          Write-Host "Apply API gateway and frontend (last)..."
-          kubectl apply -n $env:NAMESPACE -f k8s/services/api-gateway-deployment.yaml
-          kubectl apply -n $env:NAMESPACE -f k8s/services/frontend-deployment.yaml
+  #         Write-Host "Apply API gateway and frontend (last)..."
+  #         kubectl apply -n $env:NAMESPACE -f k8s/services/api-gateway-deployment.yaml
+  #         kubectl apply -n $env:NAMESPACE -f k8s/services/frontend-deployment.yaml
 
-          # Ensure api-gateway exposes Prometheus endpoint and is annotated for scraping
-          kubectl set env deployment/api-gateway MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,prometheus -n $env:NAMESPACE
-          if ($LASTEXITCODE -ne 0) { Write-Host 'set env failed or already set' }
-          kubectl annotate deployment api-gateway prometheus.io/scrape="true" prometheus.io/path="/actuator/prometheus" prometheus.io/port="9000" -n $env:NAMESPACE --overwrite
-          if ($LASTEXITCODE -ne 0) { Write-Host 'annotate failed' }
+  #         # Ensure api-gateway exposes Prometheus endpoint and is annotated for scraping
+  #         kubectl set env deployment/api-gateway MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,prometheus -n $env:NAMESPACE
+  #         if ($LASTEXITCODE -ne 0) { Write-Host 'set env failed or already set' }
+  #         kubectl annotate deployment api-gateway prometheus.io/scrape="true" prometheus.io/path="/actuator/prometheus" prometheus.io/port="9000" -n $env:NAMESPACE --overwrite
+  #         if ($LASTEXITCODE -ne 0) { Write-Host 'annotate failed' }
 
-          Write-Host "Delete pods for changed services before updating images (non-destructive)"
-          if ("${{ steps.changes.outputs.user }}" -eq "true") { kubectl delete pod -l app=user-service -n $env:NAMESPACE --ignore-not-found }
-          if ("${{ steps.changes.outputs.restaurant }}" -eq "true") { kubectl delete pod -l app=restaurant-service -n $env:NAMESPACE --ignore-not-found }
-          if ("${{ steps.changes.outputs.order }}" -eq "true") { kubectl delete pod -l app=order-service -n $env:NAMESPACE --ignore-not-found }
-          if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl delete pod -l app=payment-service -n $env:NAMESPACE --ignore-not-found }
-          if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl delete pod -l app=api-gateway -n $env:NAMESPACE --ignore-not-found }
+  #         Write-Host "Delete pods for changed services before updating images (non-destructive)"
+  #         if ("${{ steps.changes.outputs.user }}" -eq "true") { kubectl delete pod -l app=user-service -n $env:NAMESPACE --ignore-not-found }
+  #         if ("${{ steps.changes.outputs.restaurant }}" -eq "true") { kubectl delete pod -l app=restaurant-service -n $env:NAMESPACE --ignore-not-found }
+  #         if ("${{ steps.changes.outputs.order }}" -eq "true") { kubectl delete pod -l app=order-service -n $env:NAMESPACE --ignore-not-found }
+  #         if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl delete pod -l app=payment-service -n $env:NAMESPACE --ignore-not-found }
+  #         if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl delete pod -l app=api-gateway -n $env:NAMESPACE --ignore-not-found }
 
-          # Determine which image tag to use
-          $imageTag = "${{ github.sha }}"
-          if ("${{ steps.changes.outputs.workflow_only }}" -eq "true") {
-            $imageTag = "latest"
-            Write-Host "Using :latest tag (workflow/k8s only changes, no new images built)"
-          } else {
-            Write-Host "Using :$imageTag tag (new images were built)"
-          }
+  #         # Determine which image tag to use
+  #         $imageTag = "${{ github.sha }}"
+  #         if ("${{ steps.changes.outputs.workflow_only }}" -eq "true") {
+  #           $imageTag = "latest"
+  #           Write-Host "Using :latest tag (workflow/k8s only changes, no new images built)"
+  #         } else {
+  #           Write-Host "Using :$imageTag tag (new images were built)"
+  #         }
 
-          Write-Host "Updating images to $imageTag for changed services..."
-          if ("${{ steps.changes.outputs.user }}" -eq "true") { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:$imageTag -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.restaurant }}" -eq "true") { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:$imageTag -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.order }}" -eq "true") { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:$imageTag -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:$imageTag -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:$imageTag -n $env:NAMESPACE }
-          if ("${{ steps.changes.outputs.frontend }}" -eq "true") { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:$imageTag -n $env:NAMESPACE }
+  #         Write-Host "Updating images to $imageTag for changed services..."
+  #         if ("${{ steps.changes.outputs.user }}" -eq "true") { kubectl set image deployment/user-service user-service=onlykohi/cnpm-user-service:$imageTag -n $env:NAMESPACE }
+  #         if ("${{ steps.changes.outputs.restaurant }}" -eq "true") { kubectl set image deployment/restaurant-service restaurant-service=onlykohi/cnpm-restaurant-service:$imageTag -n $env:NAMESPACE }
+  #         if ("${{ steps.changes.outputs.order }}" -eq "true") { kubectl set image deployment/order-service order-service=onlykohi/cnpm-order-service:$imageTag -n $env:NAMESPACE }
+  #         if ("${{ steps.changes.outputs.payment }}" -eq "true") { kubectl set image deployment/payment-service payment-service=onlykohi/cnpm-payment-service:$imageTag -n $env:NAMESPACE }
+  #         if ("${{ steps.changes.outputs.gateway }}" -eq "true") { kubectl set image deployment/api-gateway api-gateway=onlykohi/cnpm-api-gateway:$imageTag -n $env:NAMESPACE }
+  #         if ("${{ steps.changes.outputs.frontend }}" -eq "true") { kubectl set image deployment/frontend frontend=onlykohi/cnpm-frontend:$imageTag -n $env:NAMESPACE }
 
-      - name: Wait for deployments to be ready
-        shell: powershell
-        run: |
-          Write-Host "Waiting for changed services to be ready..."
-          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
-          $failed = @()
-          $checkDeploys = @()
-          if ("${{ steps.changes.outputs.user }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'user-service' }
-          if ("${{ steps.changes.outputs.restaurant }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'restaurant-service' }
-          if ("${{ steps.changes.outputs.order }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'order-service' }
-          if ("${{ steps.changes.outputs.payment }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'payment-service' }
-          if ("${{ steps.changes.outputs.gateway }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'api-gateway' }
-          if ("${{ steps.changes.outputs.frontend }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'frontend' }
-          if ($checkDeploys.Count -eq 0) { Write-Host 'No deployments changed, skipping rollout check.'; return }
-          foreach ($d in $checkDeploys) {
-            kubectl rollout status deployment/$d -n $env:NAMESPACE --timeout=5m
-            if ($LASTEXITCODE -ne 0) {
-              "Deployment $d failed" | Tee-Object -FilePath artifacts/rollout_failures.txt -Append | Out-Null
-              $failed += $d
-            }
-          }
-          if ($failed.Count -gt 0) {
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("Failed: " + ($failed -join ' '))
-          }
+  #     - name: Wait for deployments to be ready
+  #       shell: powershell
+  #       run: |
+  #         Write-Host "Waiting for changed services to be ready..."
+  #         New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+  #         $failed = @()
+  #         $checkDeploys = @()
+  #         if ("${{ steps.changes.outputs.user }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'user-service' }
+  #         if ("${{ steps.changes.outputs.restaurant }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'restaurant-service' }
+  #         if ("${{ steps.changes.outputs.order }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'order-service' }
+  #         if ("${{ steps.changes.outputs.payment }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'payment-service' }
+  #         if ("${{ steps.changes.outputs.gateway }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'api-gateway' }
+  #         if ("${{ steps.changes.outputs.frontend }}" -eq "true" -or "${{ steps.changes.outputs.k8s }}" -eq "true") { $checkDeploys += 'frontend' }
+  #         if ($checkDeploys.Count -eq 0) { Write-Host 'No deployments changed, skipping rollout check.'; return }
+  #         foreach ($d in $checkDeploys) {
+  #           kubectl rollout status deployment/$d -n $env:NAMESPACE --timeout=5m
+  #           if ($LASTEXITCODE -ne 0) {
+  #             "Deployment $d failed" | Tee-Object -FilePath artifacts/rollout_failures.txt -Append | Out-Null
+  #             $failed += $d
+  #           }
+  #         }
+  #         if ($failed.Count -gt 0) {
+  #           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ("Failed: " + ($failed -join ' '))
+  #         }
 
-      - name: Apply Ingress
-        shell: powershell
-        run: |
-          if (Test-Path "k8s/ingress.yaml") { kubectl apply -f k8s/ingress.yaml }
-        continue-on-error: true
+  #     - name: Apply Ingress
+  #       shell: powershell
+  #       run: |
+  #         if (Test-Path "k8s/ingress.yaml") { kubectl apply -f k8s/ingress.yaml }
+  #       continue-on-error: true
 
-      - name: Deployment Summary
-        shell: powershell
-        run: |
-          $summary = @()
-          $summary += "## Deployment Complete"
-          $summary += ""
-          $summary += "### Pods"
-          $summary += (kubectl get pods -n $env:NAMESPACE)
-          $summary += ""
-          if (Test-Path artifacts/rollout_failures.txt) { $summary += "### Failed"; $summary += (Get-Content artifacts/rollout_failures.txt) }
-          ($summary -join "`n") | Add-Content $env:GITHUB_STEP_SUMMARY
+  #     - name: Deployment Summary
+  #       shell: powershell
+  #       run: |
+  #         $summary = @()
+  #         $summary += "## Deployment Complete"
+  #         $summary += ""
+  #         $summary += "### Pods"
+  #         $summary += (kubectl get pods -n $env:NAMESPACE)
+  #         $summary += ""
+  #         if (Test-Path artifacts/rollout_failures.txt) { $summary += "### Failed"; $summary += (Get-Content artifacts/rollout_failures.txt) }
+  #         ($summary -join "`n") | Add-Content $env:GITHUB_STEP_SUMMARY
 
-      - name: Upload diagnostics artifact (only on failures)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: k8s-diagnostics
-          path: artifacts
-          if-no-files-found: ignore
+  #     - name: Upload diagnostics artifact (only on failures)
+  #       if: failure()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: k8s-diagnostics
+  #         path: artifacts
+  #         if-no-files-found: ignore
 
   # ========== STAGE 6: EXPORT LOGS TO LOKI ==========
   export-logs-to-loki:
