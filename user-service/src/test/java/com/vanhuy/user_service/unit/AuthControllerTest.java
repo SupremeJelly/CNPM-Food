@@ -228,7 +228,7 @@ public class AuthControllerTest {
         when(jwtUtil.validateToken(anyString())).thenReturn(false);
 
         // When & Then
-        mockMvc.perform(post("/api/v1/auth/validateToken")
+        mockMvc.perform(post("/api/v1/")
                         .param("token", expiredToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valid", is(false)));
